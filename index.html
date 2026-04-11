@@ -2,27 +2,37 @@
 <html>
 <head>
   <title>rytr</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h2>Simple Chat</h2>
+<!-- Auth Screen -->
+<div id="authBox" class="center">
+  <h2>Login / Signup</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="signup()">Sign Up</button>
+  <button onclick="login()">Login</button>
+</div>
 
-<input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
-<button onclick="signup()">Sign Up</button>
-<button onclick="login()">Login</button>
+<!-- Chat Screen -->
+<div id="chatBox" class="hidden">
+  
+  <div class="header">
+    <span>Chat App</span>
+    <button onclick="logout()">Logout</button>
+  </div>
 
-<hr>
+  <div id="chat" class="chat"></div>
 
-<input id="message" placeholder="Message">
-<button onclick="sendMessage()">Send</button>
+  <div class="inputBox">
+    <input id="message" placeholder="Type a message">
+    <button onclick="sendMessage()">Send</button>
+  </div>
 
-<ul id="chat"></ul>
+</div>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
-
-<script src="script.js"></script>
+<script type="module" src="script.js"></script>
 </body>
 </html>
