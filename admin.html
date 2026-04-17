@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rytr Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#3949AB;
+  --blue-dark:#283593;
+  --blue-light:#E8EAF6;
+  --bg:#F0F2F5;
+  --white:#fff;
+  --text:#111;
+  --muted:#888;
+  --border:#E0E0E0;
+  --green:#388E3C;
+  --red:#D32F2F;
+}
+html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color:var(--text)}
+#loading-screen{
+  position:fixed;inset:0;background:var(--white);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:200
+}
+.ls-brand{font-size:36px;font-weight:700;color:var(--blue)}
+.ls-spinner{width:28px;height:28px;border:3px solid var(--blue-light);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* LAYOUT */
+#app{display:flex;min-height:100vh}
+
+/* SIDEBAR */
+#sidebar{
+  width:240px;background:var(--white);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:0;flex-shrink:0
+}
+#sb-top{padding:20px 20px 16px;border-bottom:1px solid var(--border)}
+#sb-brand{font-size:24px;font-weight:700;color:var(--blue)}
+#sb-role{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:13px 20px;
+  font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;
+  border-left:3px solid transparent;transition:all .15s
+}
+.nav-item:hover{background:var(--bg);color:var(--blue)}
+.nav-item.active{background:var(--blue-light);color:var(--blue);border-left-color:var(--blue)}
+.nav-item .ni-icon{font-size:16px}
+.nav-badge{
+  margin-left:auto;background:var(--red);color:#fff;
+  border-radius:20px;min-width:20px;height:20px;
+  font-size:10px;font-weight:700;padding:0 5px;
+  display:flex;align-items:center;justify-content:center
+}
+.nav-spacer{flex:1}
+.nav-logout{padding:16px 20px;border-top:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.nav-logout:hover{color:var(--red)}
+
+/* MAIN */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#page-header{
+  padding:18px 28px;background:var(--white);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0
+}
+#page-header h1{font-size:20px;font-weight:700}
+#page-header .subtitle{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* PANELS */
+.panel{display:none;flex:1;overflow-y:auto;padding:24px 28px}
+.panel.active{display:block}
+.panel::-webkit-scrollbar{width:4px}
+.panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* CARDS */
+.section-title{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text)}
+
+/* User/writer card */
+.user-card{
+  background:var(--white);border:1px solid var(--border);border-radius:12px;
+  padding:16px 20px;margin-bottom:10px;display:flex;align-items:center;gap:14px;
+  transition:box-shadow .2s
+}
+.user-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.user-avi{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--blue);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:700;flex-shrink:0
+}
+.user-info{flex:1}
+.user-name{font-size:15px;font-weight:600}
+.user-email{font-size:12px;color:var(--muted);margin-top:2px}
+.user-meta{font-size:11px;color:#aaa;margin-top:3px}
+.user-actions{display:flex;gap:8px;flex-shrink:0}
+.btn-approve{
+  background:var(--green);color:#fff;border:none;
+  padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:background .2s
+}
+.btn-approve:hover{background:#2E7D32}
+.btn-reject{
+  background:none;border:1.5px solid var(--red);color:var(--red);
+  padding:7px 14px;border-radius:8px;font-size:12px;font-weight:700;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:all .2s
+}
+.btn-reject:hover{background:var(--red);color:#fff}
+.btn-block{
+  background:none;border:1.5px solid var(--red);color:var(--red);
+  padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:all .2s
+}
+.btn-block:hover{background:var(--red);color:#fff}
+.btn-unblock{
+  background:var(--green);color:#fff;border:none;
+  padding:6px 12px;border-radius:8px;font-size:11px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer
+}
+.status-badge{
+  padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px
+}
+.badge-pending{background:#FFF8E1;color:#F57F17}
+.badge-active{background:#E8F5E9;color:var(--green)}
+.badge-blocked{background:#FFEBEE;color:var(--red)}
+.badge-reader{background:var(--blue-light);color:var(--blue)}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{
+  background:var(--white);border:1px solid var(--border);border-radius:12px;
+  padding:18px 20px
+}
+.stat-card .sc-label{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:6px}
+.stat-card .sc-val{font-size:28px;font-weight:700;color:var(--blue)}
+.stat-card .sc-sub{font-size:11px;color:#aaa;margin-top:4px}
+
+/* Empty state */
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:14px}
+.empty .em-icon{font-size:40px;margin-bottom:10px;display:block}
+
+/* Toast */
+#toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);
+  background:#333;color:#fff;padding:10px 20px;border-radius:20px;
+  font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="ls-brand">Rytr</div>
+  <div class="ls-spinner"></div>
+</div>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="sb-top">
+      <div id="sb-brand">Rytr</div>
+      <div id="sb-role">Admin Panel</div>
+    </div>
+
+    <div class="nav-item active" onclick="showPanel('pending',this)">
+      <span class="ni-icon">⏳</span> Pending Writers
+      <span class="nav-badge" id="pending-badge">0</span>
+    </div>
+    <div class="nav-item" onclick="showPanel('users',this)">
+      <span class="ni-icon">👥</span> All Users
+    </div>
+    <div class="nav-item" onclick="showPanel('writers',this)">
+      <span class="ni-icon">✍️</span> All Writers
+    </div>
+    <div class="nav-item" onclick="showPanel('overview',this)">
+      <span class="ni-icon">📊</span> Overview
+    </div>
+
+    <div class="nav-spacer"></div>
+    <div class="nav-logout" onclick="doLogout()">🚪 Logout</div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="page-header">
+      <div>
+        <h1 id="page-title">Pending Writers</h1>
+        <div class="subtitle" id="page-sub">Review and approve writer registrations</div>
+      </div>
+    </div>
+
+    <!-- Pending panel -->
+    <div class="panel active" id="panel-pending">
+      <div id="pending-list"><div class="empty"><span class="em-icon">⏳</span>Loading...</div></div>
+    </div>
+
+    <!-- All users panel -->
+    <div class="panel" id="panel-users">
+      <div id="users-list"><div class="empty"><span class="em-icon">👥</span>Loading...</div></div>
+    </div>
+
+    <!-- All writers panel -->
+    <div class="panel" id="panel-writers">
+      <div id="writers-list"><div class="empty"><span class="em-icon">✍️</span>Loading...</div></div>
+    </div>
+
+    <!-- Overview panel -->
+    <div class="panel" id="panel-overview">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="sc-label">Total Users</div><div class="sc-val" id="stat-users">—</div><div class="sc-sub">Readers + Writers</div></div>
+        <div class="stat-card"><div class="sc-label">Writers</div><div class="sc-val" id="stat-writers">—</div><div class="sc-sub">Approved</div></div>
+        <div class="stat-card"><div class="sc-label">Readers</div><div class="sc-val" id="stat-readers">—</div><div class="sc-sub">Active</div></div>
+        <div class="stat-card"><div class="sc-label">Pending</div><div class="sc-val" id="stat-pending">—</div><div class="sc-sub">Awaiting approval</div></div>
+        <div class="stat-card"><div class="sc-label">Blocked</div><div class="sc-val" id="stat-blocked">—</div><div class="sc-sub">Suspended accounts</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut,
+         sendEmailVerification }                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc,
+         getDocs, updateDoc, onSnapshot,
+         query, where, orderBy,
+         getDoc, deleteDoc }                      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyCMVpe1C0YNP1J_o0k22Ld_l5v2BzFP2xA",
+  authDomain:"rytr-105a3.firebaseapp.com",
+  projectId:"rytr-105a3",
+  storageBucket:"rytr-105a3.firebasestorage.app",
+  messagingSenderId:"76786224478",
+  appId:"1:76786224478:web:fc673130160534dae953cf"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ADMIN_EMAILS = ["admin1@rytr.app","admin2@rytr.app","admin3@rytr.app"];
+
+let currentAdmin = null;
+
+onAuthStateChanged(auth, async user => {
+  if(!user) { window.location.href='index.html'; return; }
+  if(!ADMIN_EMAILS.includes(user.email)) {
+    await signOut(auth);
+    window.location.href='index.html';
+    return;
+  }
+  currentAdmin = user;
+  document.getElementById('loading-screen').style.display='none';
+  loadPending();
+  listenPendingCount();
+});
+
+// Expose globals
+window.showPanel = showPanel;
+window.doLogout  = doLogout;
+window.approveWriter = approveWriter;
+window.rejectWriter  = rejectWriter;
+window.blockUser     = blockUser;
+window.unblockUser   = unblockUser;
+
+function showPanel(name, el) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+
+  const titles = {
+    pending:  ['Pending Writers','Review and approve writer registrations'],
+    users:    ['All Users','Manage reader accounts'],
+    writers:  ['All Writers','Manage writer accounts'],
+    overview: ['Overview','Platform statistics']
+  };
+  document.getElementById('page-title').textContent = titles[name][0];
+  document.getElementById('page-sub').textContent   = titles[name][1];
+
+  if(name==='users')    loadUsers();
+  if(name==='writers')  loadWriters();
+  if(name==='overview') loadOverview();
+}
+
+function listenPendingCount() {
+  const q = query(collection(db,'users'), where('role','==','writer'), where('approved','==',false));
+  onSnapshot(q, snap => {
+    document.getElementById('pending-badge').textContent = snap.size;
+  });
+}
+
+async function loadPending() {
+  const list = document.getElementById('pending-list');
+  const q = query(
+    collection(db,'users'),
+    where('role','==','writer'),
+    where('approved','==',false),
+    where('blocked','==',false)
+  );
+  onSnapshot(q, snap => {
+    list.innerHTML='';
+    if(snap.empty) {
+      list.innerHTML='<div class="empty"><span class="em-icon">✅</span>No pending writers right now.</div>';
+      return;
+    }
+    snap.forEach(d => {
+      const w = d.data();
+      list.appendChild(buildUserCard(w, 'pending'));
+    });
+  });
+}
+
+async function loadUsers() {
+  const list = document.getElementById('users-list');
+  list.innerHTML='<div class="empty"><span class="em-icon">⏳</span>Loading...</div>';
+  const q = query(collection(db,'users'), where('role','==','reader'));
+  const snap = await getDocs(q);
+  list.innerHTML='';
+  if(snap.empty) { list.innerHTML='<div class="empty"><span class="em-icon">👥</span>No readers yet.</div>'; return; }
+  snap.forEach(d => list.appendChild(buildUserCard(d.data(), 'reader')));
+}
+
+async function loadWriters() {
+  const list = document.getElementById('writers-list');
+  list.innerHTML='<div class="empty"><span class="em-icon">⏳</span>Loading...</div>';
+  const q = query(collection(db,'users'), where('role','==','writer'));
+  const snap = await getDocs(q);
+  list.innerHTML='';
+  if(snap.empty) { list.innerHTML='<div class="empty"><span class="em-icon">✍️</span>No writers yet.</div>'; return; }
+  snap.forEach(d => list.appendChild(buildUserCard(d.data(), 'writer')));
+}
+
+async function loadOverview() {
+  const snap = await getDocs(collection(db,'users'));
+  let users=0, writers=0, readers=0, pending=0, blocked=0;
+  snap.forEach(d => {
+    const u = d.data();
+    users++;
+    if(u.role==='writer') writers++;
+    if(u.role==='reader') readers++;
+    if(u.role==='writer' && !u.approved) pending++;
+    if(u.blocked) blocked++;
+  });
+  document.getElementById('stat-users').textContent   = users;
+  document.getElementById('stat-writers').textContent = writers;
+  document.getElementById('stat-readers').textContent = readers;
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-blocked').textContent = blocked;
+}
+
+function buildUserCard(u, type) {
+  const card = document.createElement('div');
+  card.className = 'user-card';
+  card.id = 'card-'+u.uid;
+
+  let badge = '';
+  if(type==='pending') badge='<span class="status-badge badge-pending">Pending</span>';
+  else if(u.blocked)   badge='<span class="status-badge badge-blocked">Blocked</span>';
+  else if(type==='writer') badge='<span class="status-badge badge-active">Active</span>';
+  else                 badge='<span class="status-badge badge-reader">Reader</span>';
+
+  let actions = '';
+  if(type==='pending') {
+    actions=`<button class="btn-approve" onclick="approveWriter('${u.uid}')">✓ Approve</button>
+             <button class="btn-reject"  onclick="rejectWriter('${u.uid}')">✗ Reject</button>`;
+  } else if(!u.blocked) {
+    actions=`<button class="btn-block" onclick="blockUser('${u.uid}')">Block</button>`;
+  } else {
+    actions=`<button class="btn-unblock" onclick="unblockUser('${u.uid}')">Unblock</button>`;
+  }
+
+  const joined = u.createdAt?.toDate
+    ? u.createdAt.toDate().toLocaleDateString()
+    : 'Unknown';
+
+  card.innerHTML=`
+    <div class="user-avi">${(u.displayName||'U')[0].toUpperCase()}</div>
+    <div class="user-info">
+      <div class="user-name">${esc(u.displayName||'User')} ${badge}</div>
+      <div class="user-email">${esc(u.email||'')}</div>
+      <div class="user-meta">Joined ${joined} · Balance: ${u.balance||0} pts · Earned: ${u.earned||0} pts</div>
+    </div>
+    <div class="user-actions">${actions}</div>`;
+  return card;
+}
+
+async function approveWriter(uid) {
+  try {
+    await updateDoc(doc(db,'users',uid), { approved: true });
+    toast('✅ Writer approved! They can now login.');
+    document.getElementById('card-'+uid)?.remove();
+  } catch(e) { toast('Error: '+e.message); }
+}
+
+async function rejectWriter(uid) {
+  if(!confirm('Reject and delete this writer account?')) return;
+  try {
+    await updateDoc(doc(db,'users',uid), { blocked:true, approved:false });
+    toast('Writer rejected.');
+    document.getElementById('card-'+uid)?.remove();
+  } catch(e) { toast('Error: '+e.message); }
+}
+
+async function blockUser(uid) {
+  if(!confirm('Block this user? They will not be able to login.')) return;
+  await updateDoc(doc(db,'users',uid), { blocked:true });
+  toast('User blocked.');
+  document.getElementById('card-'+uid)?.remove();
+}
+
+async function unblockUser(uid) {
+  await updateDoc(doc(db,'users',uid), { blocked:false });
+  toast('User unblocked.');
+  document.getElementById('card-'+uid)?.remove();
+}
+
+function doLogout() { signOut(auth).then(()=>window.location.href='index.html'); }
+
+function esc(s='') { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2800);
+}
+window.toast=toast;
+</script>
+</body>
+</html>

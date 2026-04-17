@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rytr — Connect to Read</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#3949AB;
+  --blue-dark:#283593;
+  --blue-light:#5C6BC0;
+  --bg:#EBEBEB;
+  --white:#FFFFFF;
+  --text:#1a1a2e;
+  --muted:#888;
+  --border:#E0E0E0;
+  --input-bg:#F5F5F5;
+  --error:#D32F2F;
+  --success:#388E3C;
+}
+html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color:var(--text)}
+
+/* TOP NAV */
+#top-nav{
+  position:fixed;top:0;right:0;left:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 40px;z-index:10
+}
+#nav-logo{font-size:22px;font-weight:700;color:var(--blue);letter-spacing:.5px}
+#nav-tabs{display:flex;gap:24px}
+.nav-tab{
+  font-size:15px;font-weight:500;color:var(--muted);cursor:pointer;
+  padding-bottom:2px;border-bottom:2px solid transparent;transition:all .2s
+}
+.nav-tab.active,.nav-tab:hover{color:var(--blue)}
+.nav-tab.active{font-weight:700;border-bottom-color:var(--blue)}
+
+/* CENTER LAYOUT */
+body{display:flex;align-items:center;justify-content:center;min-height:100vh}
+#page-wrap{width:100%;display:flex;flex-direction:column;align-items:center;padding-top:80px;padding-bottom:40px}
+
+/* HERO */
+#hero{text-align:center;margin-bottom:32px}
+#hero h1{font-size:42px;font-weight:700;color:var(--blue);letter-spacing:.5px}
+#hero p{font-size:16px;color:#555;margin-top:4px}
+
+/* CARD */
+#card{
+  background:var(--white);border-radius:16px;
+  padding:32px 36px 28px;width:100%;max-width:480px;
+  box-shadow:0 2px 20px rgba(0,0,0,.08)
+}
+
+/* ROLE TABS */
+#role-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:28px}
+.role-tab{
+  flex:1;text-align:center;padding:10px 0;font-size:15px;font-weight:400;
+  color:#888;cursor:pointer;border-bottom:2px solid transparent;
+  margin-bottom:-1px;transition:all .2s
+}
+.role-tab.active{color:var(--text);font-weight:500;border-bottom-color:var(--text)}
+
+/* FORM FIELDS */
+.field{margin-bottom:18px}
+.field label{display:block;font-size:13px;color:#666;margin-bottom:7px;font-weight:500}
+.field input{
+  width:100%;padding:13px 16px;
+  background:var(--input-bg);border:1.5px solid transparent;
+  border-radius:10px;font-size:14px;font-family:'Roboto',sans-serif;
+  color:var(--text);outline:none;transition:border-color .2s
+}
+.field input:focus{border-color:var(--blue);background:#fff}
+.field input::placeholder{color:#bbb}
+
+/* SUBMIT BTN */
+.submit-btn{
+  width:100%;padding:14px;background:var(--blue);color:#fff;
+  border:none;border-radius:10px;font-size:15px;font-weight:700;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:background .2s;
+  margin-top:4px;letter-spacing:.3px
+}
+.submit-btn:hover{background:var(--blue-dark)}
+.submit-btn:active{transform:scale(.99)}
+.submit-btn:disabled{background:#9FA8DA;cursor:not-allowed}
+
+/* LINKS */
+.link-row{margin-top:14px;text-align:center}
+.link-row a,.link-row span{
+  font-size:13px;color:var(--blue);cursor:pointer;text-decoration:none;font-weight:500
+}
+.link-row a:hover{text-decoration:underline}
+
+/* MESSAGES */
+#msg{
+  margin-top:14px;padding:11px 14px;border-radius:8px;
+  font-size:13px;text-align:center;display:none
+}
+#msg.error{background:#FFEBEE;color:var(--error);display:block}
+#msg.success{background:#E8F5E9;color:var(--success);display:block}
+#msg.info{background:#E8EAF6;color:var(--blue);display:block}
+
+/* DIVIDER */
+.divider{display:flex;align-items:center;gap:10px;margin:20px 0}
+.divider span{font-size:12px;color:#bbb;white-space:nowrap}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* WRITER PENDING notice */
+#pending-notice{
+  background:#FFF8E1;border:1px solid #FFE082;border-radius:10px;
+  padding:14px 16px;font-size:13px;color:#5D4037;line-height:1.6;
+  display:none;margin-top:14px
+}
+
+/* VERIFY WALL */
+#verify-wall{
+  background:var(--white);border-radius:16px;
+  padding:40px 36px;width:100%;max-width:480px;
+  box-shadow:0 2px 20px rgba(0,0,0,.08);text-align:center;display:none
+}
+#verify-wall .vicon{font-size:48px;margin-bottom:16px}
+#verify-wall h2{font-size:22px;font-weight:700;color:var(--blue);margin-bottom:10px}
+#verify-wall p{font-size:14px;color:#555;line-height:1.7;margin-bottom:20px}
+#verify-wall .resend-btn{
+  background:none;border:1.5px solid var(--blue);color:var(--blue);
+  padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:all .2s
+}
+#verify-wall .resend-btn:hover{background:var(--blue);color:#fff}
+
+/* Loading spinner */
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Forgot password */
+#forgot-form{display:none}
+</style>
+</head>
+<body>
+
+<div id="top-nav">
+  <div id="nav-logo">Rytr</div>
+  <div id="nav-tabs">
+    <div class="nav-tab active" onclick="showMode('login')">Login</div>
+    <div class="nav-tab" onclick="showMode('signup')">SignUp</div>
+  </div>
+</div>
+
+<div id="page-wrap">
+  <div id="hero">
+    <h1>Rytr</h1>
+    <p>Connect to Read</p>
+  </div>
+
+  <!-- MAIN CARD -->
+  <div id="card">
+    <!-- Role tabs -->
+    <div id="role-tabs">
+      <div class="role-tab active" onclick="setRole('reader',this)">Reader</div>
+      <div class="role-tab" onclick="setRole('writer',this)">Writer</div>
+      <div class="role-tab" onclick="setRole('admin',this)">Admin</div>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="login-form">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="your@email.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <button class="submit-btn" onclick="doLogin()">Login</button>
+      <div class="link-row">
+        <a onclick="showForgot()">Forgot Password?</a>
+      </div>
+    </div>
+
+    <!-- FORGOT PASSWORD FORM -->
+    <div id="forgot-form">
+      <div class="field">
+        <label>Enter your email to reset password</label>
+        <input type="email" id="forgot-email" placeholder="your@email.com"/>
+      </div>
+      <button class="submit-btn" onclick="doForgot()">Send Reset Link</button>
+      <div class="link-row">
+        <a onclick="showLogin()">← Back to Login</a>
+      </div>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="signup-form" style="display:none">
+      <div class="field">
+        <label>Display Name</label>
+        <input type="text" id="signup-name" placeholder="Your name"/>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="your@email.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="signup-pass" placeholder="Min. 6 characters"/>
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input type="password" id="signup-pass2" placeholder="Repeat password"/>
+      </div>
+      <button class="submit-btn" onclick="doSignup()">Create Account</button>
+    </div>
+
+    <!-- Messages -->
+    <div id="msg"></div>
+    <div id="pending-notice">
+      ⏳ Your writer account is pending admin approval. You'll receive a verification email once approved. Please check back later.
+    </div>
+  </div>
+
+  <!-- VERIFY WALL (shown after signup) -->
+  <div id="verify-wall">
+    <div class="vicon">✉️</div>
+    <h2>Check your email</h2>
+    <p id="verify-text">We've sent a verification link to your email address.<br/>Please verify before logging in.</p>
+    <button class="resend-btn" onclick="resendVerification()">Resend Email</button>
+    <div class="link-row" style="margin-top:16px">
+      <a onclick="showLogin()">← Back to Login</a>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }                            from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword,
+         createUserWithEmailAndPassword,
+         sendEmailVerification, sendPasswordResetEmail,
+         updateProfile, signOut }                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc,
+         getDoc, serverTimestamp }                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyCMVpe1C0YNP1J_o0k22Ld_l5v2BzFP2xA",
+  authDomain:"rytr-105a3.firebaseapp.com",
+  projectId:"rytr-105a3",
+  storageBucket:"rytr-105a3.firebasestorage.app",
+  messagingSenderId:"76786224478",
+  appId:"1:76786224478:web:fc673130160534dae953cf"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const ADMIN_EMAILS = ["admin1@rytr.app","admin2@rytr.app","admin3@rytr.app"];
+
+// State
+let currentRole = 'reader';
+let currentMode = 'login';
+
+// Expose globals
+window.setRole = setRole;
+window.showMode = showMode;
+window.doLogin = doLogin;
+window.doSignup = doSignup;
+window.doForgot = doForgot;
+window.showForgot = showForgot;
+window.showLogin = showLogin;
+window.resendVerification = resendVerification;
+
+function setRole(role, el) {
+  currentRole = role;
+  document.querySelectorAll('.role-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  clearMsg();
+  // Admin tab hides signup
+  if (role === 'admin') {
+    document.querySelector('.nav-tab[onclick*="signup"]').style.display = 'none';
+    showMode('login');
+  } else {
+    document.querySelector('.nav-tab[onclick*="signup"]').style.display = '';
+  }
+}
+
+function showMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>{
+    if(t.textContent.toLowerCase().includes(mode)) t.classList.add('active');
+  });
+  document.getElementById('login-form').style.display  = mode==='login'  ? '' : 'none';
+  document.getElementById('signup-form').style.display = mode==='signup' ? '' : 'none';
+  document.getElementById('forgot-form').style.display = 'none';
+  document.getElementById('card').style.display = '';
+  document.getElementById('verify-wall').style.display = 'none';
+  document.getElementById('pending-notice').style.display = 'none';
+  clearMsg();
+}
+
+function showForgot() {
+  document.getElementById('login-form').style.display  = 'none';
+  document.getElementById('forgot-form').style.display = '';
+  clearMsg();
+}
+
+function showLogin() {
+  document.getElementById('forgot-form').style.display  = 'none';
+  document.getElementById('signup-form').style.display  = 'none';
+  document.getElementById('login-form').style.display   = '';
+  document.getElementById('verify-wall').style.display  = 'none';
+  document.getElementById('card').style.display         = '';
+  clearMsg();
+}
+
+function setMsg(text, type) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = type;
+}
+function clearMsg() {
+  const el = document.getElementById('msg');
+  el.textContent = '';
+  el.className = '';
+}
+
+function setBtnLoading(btn, loading) {
+  if(loading) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Please wait...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = currentMode === 'login' ? 'Login' : 'Create Account';
+  }
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  if(!email || !pass) { setMsg('Please fill in all fields.','error'); return; }
+
+  const btn = document.querySelector('#login-form .submit-btn');
+  setBtnLoading(btn, true);
+  clearMsg();
+
+  try {
+    // Admin login
+    if(currentRole === 'admin') {
+      const adminMap = {
+        'admin1@rytr.app': 'n3773*3773',
+        'admin2@rytr.app': 's3773*3773',
+        'admin3@rytr.app': 't3773*3773'
+      };
+      if(!adminMap[email] || adminMap[email] !== pass) {
+        throw { code: 'auth/wrong-password' };
+      }
+      // Sign in with Firebase (admin accounts must exist in Firebase Auth)
+      await signInWithEmailAndPassword(auth, email, pass);
+      window.location.href = 'admin.html';
+      return;
+    }
+
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    const user = cred.user;
+
+    // Check email verified
+    if(!user.emailVerified) {
+      await signOut(auth);
+      document.getElementById('card').style.display = 'none';
+      document.getElementById('verify-wall').style.display = '';
+      document.getElementById('verify-text').innerHTML =
+        'Your email is not yet verified.<br/>Please check your inbox and verify before logging in.';
+      return;
+    }
+
+    // Get role from Firestore
+    const userDoc = await getDoc(doc(db,'users',user.uid));
+    const userData = userDoc.exists() ? userDoc.data() : {};
+    const role = userData.role || 'reader';
+
+    // Check role matches tab
+    if(currentRole !== role && currentRole !== 'reader') {
+      await signOut(auth);
+      setMsg(`This account is registered as a ${role}. Please select the correct role tab.`, 'error');
+      btn.disabled = false; btn.innerHTML = 'Login';
+      return;
+    }
+
+    // Writer: check approved + not blocked
+    if(role === 'writer' && userData.blocked) {
+      await signOut(auth);
+      setMsg('Your writer account has been suspended. Contact support.','error');
+      btn.disabled = false; btn.innerHTML = 'Login';
+      return;
+    }
+
+    // Store role in sessionStorage for chat.html
+    sessionStorage.setItem('rytr_role', role);
+    sessionStorage.setItem('rytr_uid', user.uid);
+    sessionStorage.setItem('rytr_name', userData.displayName || user.displayName || 'User');
+
+    window.location.href = role === 'admin' ? 'admin.html' : 'chat.html';
+
+  } catch(e) {
+    btn.disabled = false; btn.innerHTML = 'Login';
+    const msgs = {
+      'auth/user-not-found':     'No account found with this email.',
+      'auth/wrong-password':     'Incorrect password.',
+      'auth/invalid-credential': 'Incorrect email or password.',
+      'auth/too-many-requests':  'Too many attempts. Try again later.',
+      'auth/invalid-email':      'Please enter a valid email address.'
+    };
+    setMsg(msgs[e.code] || 'Login failed. Please try again.', 'error');
+  }
+}
+
+async function doSignup() {
+  if(currentRole === 'admin') { setMsg('Admin accounts cannot be created here.','error'); return; }
+
+  const name  = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass  = document.getElementById('signup-pass').value;
+  const pass2 = document.getElementById('signup-pass2').value;
+
+  if(!name || !email || !pass || !pass2) { setMsg('Please fill in all fields.','error'); return; }
+  if(pass !== pass2) { setMsg('Passwords do not match.','error'); return; }
+  if(pass.length < 6) { setMsg('Password must be at least 6 characters.','error'); return; }
+
+  const btn = document.querySelector('#signup-form .submit-btn');
+  setBtnLoading(btn, true);
+  clearMsg();
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    const user = cred.user;
+
+    await updateProfile(user, { displayName: name });
+    await sendEmailVerification(user);
+
+    // Save user to Firestore
+    await setDoc(doc(db,'users',user.uid), {
+      uid:         user.uid,
+      displayName: name,
+      email:       email,
+      role:        currentRole,     // 'reader' or 'writer'
+      balance:     20,              // Starting balance: 20 coins per spec
+      earned:      0,
+      blocked:     false,
+      approved:    currentRole === 'reader' ? true : false, // writers start unapproved
+      createdAt:   serverTimestamp()
+    });
+
+    await signOut(auth);
+
+    // Show verify wall
+    document.getElementById('card').style.display = 'none';
+    document.getElementById('verify-wall').style.display = '';
+
+    if(currentRole === 'writer') {
+      document.getElementById('verify-text').innerHTML =
+        'We have sent a verification link to <strong>' + email + '</strong><br/>' +
+        'Please verify your email. Note: Writers are also subject to admin review.';
+    } else {
+      document.getElementById('verify-text').innerHTML =
+        'We have sent a verification link to <strong>' + email + '</strong><br/>' +
+        'Please verify your email before logging in.';
+    }
+
+  } catch(e) {
+    btn.disabled = false; btn.innerHTML = 'Create Account';
+    const msgs = {
+      'auth/email-already-in-use': 'This email is already registered.',
+      'auth/invalid-email':        'Please enter a valid email address.',
+      'auth/weak-password':        'Password is too weak.'
+    };
+    setMsg(msgs[e.code] || 'Signup failed. Please try again.', 'error');
+  }
+}
+
+async function doForgot() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if(!email) { setMsg('Please enter your email address.','error'); return; }
+  const btn = document.querySelector('#forgot-form .submit-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Sending...';
+  try {
+    await sendPasswordResetEmail(auth, email);
+    setMsg('Reset link sent! Check your inbox.','success');
+    btn.innerHTML = 'Send Reset Link'; btn.disabled = false;
+  } catch(e) {
+    btn.innerHTML = 'Send Reset Link'; btn.disabled = false;
+    setMsg('Could not send reset email. Check the address.','error');
+  }
+}
+
+let lastSignedUpUser = null;
+async function resendVerification() {
+  try {
+    // Re-sign in isn't possible without password here,
+    // so just show a message guiding them
+    setMsg('Please log in and we will prompt you to verify again.','info');
+  } catch(e) {
+    setMsg('Could not resend. Please try signing up again.','error');
+  }
+}
+
+// Allow Enter key on inputs
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const lf = document.getElementById('login-form');
+  const sf = document.getElementById('signup-form');
+  const ff = document.getElementById('forgot-form');
+  if(lf.style.display !== 'none' && lf.style.display !== '') doLogin();
+  else if(sf.style.display !== 'none' && sf.style.display !== '') doSignup();
+  else if(ff.style.display !== 'none' && ff.style.display !== '') doForgot();
+  else if(lf.style.display === '') doLogin();
+});
+</script>
+</body>
+</html>
