@@ -38,7 +38,6 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 }
 
 /* Sidebar top */
-#sb-top{padding:14px 16px 12px;border-bottom:1px solid var(--border)}
 #sb-brand{font-size:26px;font-weight:700;color:var(--blue);margin-bottom:10px}
 #sb-balance-row{
   display:flex;align-items:center;justify-content:space-between;
@@ -195,10 +194,13 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   box-shadow:0 1px 2px rgba(0,0,0,.08)
 }
 .bubble.outgoing{
-  background:var(--bubble-out);
+  background:#3949AB;
+  color:#fff;
   border-radius:12px 0 12px 12px;
   box-shadow:0 1px 2px rgba(0,0,0,.08)
 }
+.bubble.outgoing .bubble-time{color:rgba(255,255,255,.65)}
+.bubble.outgoing .tick{color:rgba(255,255,255,.9)}
 .bubble-name{font-size:11px;font-weight:600;color:var(--blue);margin-bottom:3px}
 .bubble-time{font-size:10px;color:#aaa;text-align:right;margin-top:4px;display:flex;align-items:center;justify-content:flex-end;gap:3px}
 .tick{font-size:11px;color:var(--blue)}
@@ -399,6 +401,12 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   font-family:'Roboto',sans-serif;cursor:pointer;white-space:nowrap
 }
 .chat-now-btn:hover{background:var(--blue-dark)}
+.writer-link-btn{
+  background:none;border:1.5px solid var(--border);
+  border-radius:8px;padding:5px 9px;font-size:14px;
+  cursor:pointer;transition:all .2s;flex-shrink:0
+}
+.writer-link-btn:hover{background:var(--blue-light);border-color:var(--blue)}
 
 /* Settings menu */
 #settings-menu{
@@ -409,25 +417,30 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 }
 #settings-menu.show{display:block}
 .settings-item{
-  padding:13px 18px;font-size:14px;color:var(--text);
+  padding:13px 18px;font-size:14px;color:#111;
   cursor:pointer;transition:background .15s;display:flex;align-items:center;gap:10px
 }
 .settings-item:hover{background:var(--bg)}
 .settings-item.danger{color:#D32F2F}
-.settings-item .si-icon{font-size:16px}
+.settings-item .si-icon{font-size:16px;filter:grayscale(1) brightness(0);flex-shrink:0}
+.settings-item.danger .si-icon{filter:none}
 
 /* Sidebar brand row with ⋮ */
 #sb-brand-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-#sb-more-btn{
-  background:none;border:none;font-size:22px;cursor:pointer;
+#sb-more-btn,#sb-link-btn{
+  background:none;border:none;font-size:18px;cursor:pointer;
   color:var(--muted);padding:4px 8px;border-radius:6px;
   transition:background .15s;line-height:1
 }
-#sb-more-btn:hover{background:var(--bg);color:var(--text)}
+#sb-more-btn{font-size:22px}
+#sb-more-btn:hover,#sb-link-btn:hover{background:var(--bg);color:var(--text)}
 
-/* Sidebar dropdown menu */
+/* Sidebar top needs relative positioning for the dropdown */
+#sb-top{padding:14px 16px 12px;border-bottom:1px solid var(--border);position:relative}
+
+/* Sidebar dropdown menu — anchored under the ⋮ button inside sb-top */
 #sb-menu{
-  display:none;position:absolute;top:58px;right:12px;
+  display:none;position:absolute;top:52px;right:12px;
   background:var(--white);border:1px solid var(--border);
   border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.13);
   min-width:210px;z-index:200;overflow:hidden
@@ -484,7 +497,10 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
     <div id="sb-top">
       <div id="sb-brand-row">
         <div id="sb-brand">Rytr</div>
-        <button id="sb-more-btn" onclick="toggleSbMenu(event)" title="Menu">⋮</button>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button id="sb-link-btn" style="display:none" onclick="showWriterProfileLink()" title="Copy your profile link">🔗</button>
+          <button id="sb-more-btn" onclick="toggleSbMenu(event)" title="Menu">⋮</button>
+        </div>
       </div>
       <!-- Sidebar dropdown menu -->
       <div id="sb-menu">
@@ -755,19 +771,22 @@ async function initUI() {
   document.getElementById('balance-val').textContent = currentUserData.balance ?? 20;
   document.getElementById('earned-val').textContent  = currentUserData.earned  ?? 0;
 
-  // Show writer-only sidebar menu item
+  // Show writer-only sidebar menu item and link button
   if(currentUserData.role === 'writer') {
     document.getElementById('create-room-item').style.display = '';
+    document.getElementById('sb-link-btn').style.display = '';
   }
 
-  // Check for invite link in URL: chat.html?room=ROOMID
-  const urlParams = new URLSearchParams(window.location.search);
+  // Check for invite link in URL: chat.html?room=ROOMID or chat.html?writer=WRITERID
+  const urlParams    = new URLSearchParams(window.location.search);
   const inviteRoomId = urlParams.get('room');
+  const inviteWriter = urlParams.get('writer');
+  window.history.replaceState({}, '', 'chat.html');
+
   if(inviteRoomId) {
-    // Remove param from URL cleanly
-    window.history.replaceState({}, '', 'chat.html');
-    // Wait for auth then open the room
     await joinRoomById(inviteRoomId);
+  } else if(inviteWriter) {
+    await joinWriterDM(inviteWriter);
   }
 }
 
@@ -870,8 +889,11 @@ function renderChatItem(docSnap, type) {
 
 // ── OPEN CHAT ──
 async function openChat(chatId, type, meta) {
-  // ── Unsubscribe ALL active message listeners before switching ──
-  Object.values(msgListeners).forEach(unsub => unsub());
+  // Unsubscribe ALL active listeners (messages + unlockCount)
+  Object.entries(msgListeners).forEach(([k, v]) => {
+    if(Array.isArray(v)) v.forEach(fn => fn());   // unlockCount listeners
+    else v();                                       // message listener
+  });
   Object.keys(msgListeners).forEach(k => delete msgListeners[k]);
 
   // ── Clear the messages pane immediately ──
@@ -957,7 +979,7 @@ async function appendMessage(docSnap, colPath) {
           <div class="stat">Earned <b id="ue-${msgId}">🪙 ${(data.unlockCount||0)*data.price}</b></div>
         </div>
       </div>`;
-    listenUnlockCount(docSnap.ref, msgId, data.price);
+    listenUnlockCount(docSnap.ref, msgId, data.price, currentChatId);
 
   } else {
     // Someone else's locked message — show loading state first, then check unlock
@@ -1002,15 +1024,20 @@ async function appendMessage(docSnap, colPath) {
   wrap.scrollTop = wrap.scrollHeight;
 }
 
-function listenUnlockCount(ref, msgId, price) {
-  onSnapshot(ref, snap => {
+function listenUnlockCount(ref, msgId, price, chatId) {
+  const unsub = onSnapshot(ref, snap => {
+    // Ignore if user has already switched away from this chat
+    if(currentChatId !== chatId) { unsub(); return; }
     if(!snap.exists()) return;
-    const d = snap.data();
+    const d  = snap.data();
     const uc = document.getElementById('uc-'+msgId);
     const ue = document.getElementById('ue-'+msgId);
     if(uc) uc.textContent = d.unlockCount||0;
     if(ue) ue.textContent = `🪙 ${(d.unlockCount||0)*price}`;
   });
+  // Store so openChat can unsubscribe on switch
+  if(!msgListeners['_uc_'+chatId]) msgListeners['_uc_'+chatId] = [];
+  msgListeners['_uc_'+chatId].push(unsub);
 }
 
 // ── SEND MESSAGE ──
@@ -1254,6 +1281,27 @@ window.createRoom = async function() {
 };
 
 // ── INVITE LINK ──
+// Writer copies their own profile invite link
+window.showWriterProfileLink = function() {
+  const link = `${location.origin}/chat.html?writer=${currentUser.uid}`;
+  navigator.clipboard.writeText(link).then(() => {
+    toast('✅ Your chat link copied! Share it with readers.');
+  }).catch(() => {
+    prompt('Copy your invite link:', link);
+  });
+}
+
+// Copy DM invite link for a writer profile
+window.copyWriterLink = function(writerId, e) {
+  e.stopPropagation();
+  const link = `${location.origin}/chat.html?writer=${writerId}`;
+  navigator.clipboard.writeText(link).then(() => {
+    toast('✅ Writer chat link copied!');
+  }).catch(() => {
+    prompt('Copy this link:', link);
+  });
+}
+
 window.showInviteLink = function() {
   const link = `${location.origin}/chat.html?room=${currentChatId}`;
   document.getElementById('invite-link-box').textContent = link;
@@ -1288,6 +1336,33 @@ async function joinRoomById(roomId) {
     toast(`✅ Joined "${room.name}"!`);
   } catch(e) {
     toast('Could not join room. Try again.');
+  }
+}
+
+async function joinWriterDM(writerId) {
+  try {
+    const writerSnap = await getDoc(doc(db, 'users', writerId));
+    if(!writerSnap.exists()) { toast('Writer not found.'); return; }
+    const wr = writerSnap.data();
+    const writerName = wr.displayName || 'Writer';
+    const chatId = [currentUser.uid, writerId].sort().join('_');
+    const chatRef = doc(db, 'chats', chatId);
+    const chatSnap = await getDoc(chatRef);
+    if(!chatSnap.exists()) {
+      await setDoc(chatRef, {
+        participants:     [currentUser.uid, writerId],
+        participantNames: {
+          [currentUser.uid]: currentUserData.displayName||'User',
+          [writerId]:        writerName
+        },
+        lastMessage:   '',
+        lastMessageAt: serverTimestamp()
+      });
+    }
+    openChat(chatId, 'dm', { name: writerName, sub: 'Direct Message' });
+    toast(`✅ Opened chat with ${writerName}!`);
+  } catch(e) {
+    toast('Could not open chat. Try again.');
   }
 }
 
