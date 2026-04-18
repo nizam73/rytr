@@ -812,6 +812,15 @@ function renderChatItem(docSnap, type) {
 
 // ── OPEN CHAT ──
 async function openChat(chatId, type, meta) {
+  // ── Unsubscribe ALL active message listeners before switching ──
+  Object.values(msgListeners).forEach(unsub => unsub());
+  Object.keys(msgListeners).forEach(k => delete msgListeners[k]);
+
+  // ── Clear the messages pane immediately ──
+  const wrap = document.getElementById('messages-wrap');
+  wrap.innerHTML = '';
+  unlockDataMap.clear();
+
   currentChatId   = chatId;
   currentChatType = type;
   currentChatMeta = meta;
@@ -824,18 +833,19 @@ async function openChat(chatId, type, meta) {
   // Show header + messages + compose
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('chat-header').classList.add('visible');
-  document.getElementById('messages-wrap').classList.add('visible');
+  wrap.classList.add('visible');
   document.getElementById('compose').classList.add('visible');
 
   document.getElementById('header-name').textContent = meta.name;
   document.getElementById('header-sub').textContent  = meta.sub || (type==='room'?'Group Room':'Direct Message');
   document.getElementById('header-initial').textContent = (meta.name[0]||'?').toUpperCase();
 
-  // Start listening to messages
-  if(msgListeners[chatId]) msgListeners[chatId](); // unsubscribe old
+  // Start fresh listener for this chat only
   const colPath = type==='room' ? `rooms/${chatId}/messages` : `chats/${chatId}/messages`;
   const msgQ = query(collection(db, colPath), orderBy('createdAt','asc'));
   msgListeners[chatId] = onSnapshot(msgQ, snap => {
+    // Only process if this chat is still the active one
+    if(currentChatId !== chatId) return;
     snap.docChanges().forEach(ch => {
       if(ch.type === 'added') appendMessage(ch.doc, colPath);
     });
