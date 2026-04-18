@@ -131,7 +131,8 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 #chat-header{
   display:none;padding:12px 20px;background:var(--white);
   border-bottom:1px solid var(--border);
-  display:none;align-items:center;gap:12px;flex-shrink:0
+  display:none;align-items:center;gap:12px;flex-shrink:0;
+  position:relative;
 }
 #chat-header.visible{display:flex}
 #header-avatar{
@@ -401,10 +402,10 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 
 /* Settings menu */
 #settings-menu{
-  display:none;position:absolute;top:56px;right:20px;
+  display:none;position:absolute;top:58px;right:10px;
   background:var(--white);border:1px solid var(--border);
-  border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);
-  min-width:200px;z-index:50;overflow:hidden
+  border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);
+  min-width:210px;z-index:200;overflow:hidden
 }
 #settings-menu.show{display:block}
 .settings-item{
@@ -650,12 +651,26 @@ let chatListeners = {};
 
 // ── AUTH GATE ──
 onAuthStateChanged(auth, async user => {
-  if(!user || !user.emailVerified) {
+  if(!user) { window.location.href = 'index.html'; return; }
+
+  // Force-refresh the token so emailVerified is not stale
+  await user.reload();
+  const freshUser = auth.currentUser;
+  if(!freshUser || !freshUser.emailVerified) {
     window.location.href = 'index.html';
     return;
   }
-  currentUser = user;
-  const snap = await getDoc(doc(db,'users',user.uid));
+  currentUser = freshUser;
+
+  let snap;
+  try {
+    snap = await getDoc(doc(db,'users',currentUser.uid));
+  } catch(e) {
+    // Firestore rules may reject if not authenticated — sign out and redirect
+    await signOut(auth);
+    window.location.href = 'index.html';
+    return;
+  }
   if(!snap.exists()) { window.location.href = 'index.html'; return; }
   currentUserData = snap.data();
 
@@ -713,21 +728,40 @@ async function loadChats() {
   const list = document.getElementById('chat-list');
   list.innerHTML = '';
 
-  // 1. Listen to DM chats where user is participant
+  // 1. DM chats — no orderBy to avoid needing a composite Firestore index
   const dmQ = query(
     collection(db,'chats'),
-    where('participants','array-contains', currentUser.uid),
-    orderBy('lastMessageAt','desc')
+    where('participants','array-contains', currentUser.uid)
   );
   onSnapshot(dmQ, snap => {
-    snap.docChanges().forEach(ch => renderChatItem(ch.doc, 'dm'));
+    snap.docChanges().forEach(ch => {
+      if(ch.type === 'removed') {
+        document.getElementById('ci-'+ch.doc.id)?.remove();
+      } else {
+        renderChatItem(ch.doc, 'dm');
+      }
+    });
+    sortChatList();
   });
 
-  // 2. Rooms
+  // 2. Rooms — simple query, no compound index needed
   const roomQ = query(collection(db,'rooms'), orderBy('createdAt','desc'));
   onSnapshot(roomQ, snap => {
-    snap.docChanges().forEach(ch => renderChatItem(ch.doc, 'room'));
+    snap.docChanges().forEach(ch => {
+      if(ch.type === 'removed') {
+        document.getElementById('ci-'+ch.doc.id)?.remove();
+      } else {
+        renderChatItem(ch.doc, 'room');
+      }
+    });
   });
+}
+
+function sortChatList() {
+  const list = document.getElementById('chat-list');
+  const items = [...list.querySelectorAll('.chat-item[data-ts]')];
+  items.sort((a,b) => (b.dataset.ts||0) - (a.dataset.ts||0));
+  items.forEach(i => list.appendChild(i));
 }
 
 function renderChatItem(docSnap, type) {
@@ -759,6 +793,8 @@ function renderChatItem(docSnap, type) {
     initial = (name[0]||'U').toUpperCase();
   }
 
+  const ts = data.lastMessageAt?.seconds || data.createdAt?.seconds || 0;
+  item.dataset.ts = ts;
   item.innerHTML = `
     <div class="chat-avatar">${initial}</div>
     <div class="chat-info">
@@ -805,6 +841,9 @@ async function openChat(chatId, type, meta) {
     });
   });
 }
+
+// Map to hold pending unlock data keyed by msgId
+const unlockDataMap = new Map();
 
 // ── RENDER MESSAGE ──
 async function appendMessage(docSnap, colPath) {
@@ -866,6 +905,8 @@ async function appendMessage(docSnap, colPath) {
           </div>
         </div>`;
     } else {
+      // Store data safely in map
+      unlockDataMap.set(msgId, { colPath, senderName: data.senderName||'', price: data.price, senderId: data.senderId });
       row.innerHTML = `
         ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
         <div class="locked-card" id="lc-${msgId}">
@@ -873,7 +914,7 @@ async function appendMessage(docSnap, colPath) {
             <div class="sender-name">${esc(data.senderName||'')}</div>
             <div class="blurred-text">${esc(data.text)}</div>
           </div>
-          <div class="unlock-bar" onclick="openUnlock('${msgId}','${colPath}','${data.senderName||''}',${data.price},'${data.senderId}')">
+          <div class="unlock-bar" onclick="openUnlock('${msgId}')">
             <span class="ul-text">Unlock &amp; Read</span>
             <span class="ul-price">${data.price} Points</span>
           </div>
@@ -959,13 +1000,15 @@ window.toggleLock = function() {
 
 // ── UNLOCK ──
 let pendingUnlockData = null;
-window.openUnlock = function(msgId, colPath, senderName, price, senderId) {
-  pendingUnlockData = { msgId, colPath, senderName, price, senderId };
+window.openUnlock = function(msgId) {
+  const d = unlockDataMap.get(msgId);
+  if(!d) { toast('Could not load message data.'); return; }
+  pendingUnlockData = { msgId, ...d };
   const bal   = currentUserData.balance||0;
-  const after = bal - price;
+  const after = bal - d.price;
 
-  document.getElementById('ul-sender').textContent  = senderName;
-  document.getElementById('ul-price').textContent   = `${price} Points`;
+  document.getElementById('ul-sender').textContent  = d.senderName;
+  document.getElementById('ul-price').textContent   = `${d.price} Points`;
   document.getElementById('ul-balance').textContent = `${bal} Points`;
 
   const afterEl = document.getElementById('ul-after');
@@ -1213,11 +1256,21 @@ window.doLogout = async function() {
 
 // ── HELPERS ──
 window.closeOverlay = function(id) { document.getElementById(id).classList.remove('show') }
+
+// Use capture:true so stopPropagation in the button handler works correctly with ES modules
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('settings-menu');
+  const btn  = document.getElementById('header-more');
+  if(menu && !menu.contains(e.target) && e.target !== btn) {
+    menu.classList.remove('show');
+  }
+}, true);
+
 window.toggleSettings = function(e) {
   e.stopPropagation();
+  e.preventDefault();
   document.getElementById('settings-menu').classList.toggle('show');
 }
-document.addEventListener('click', () => document.getElementById('settings-menu').classList.remove('show'));
 
 function formatTime(d) {
   if(!d) return '';
