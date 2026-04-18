@@ -857,22 +857,24 @@ const unlockDataMap = new Map();
 
 // ── RENDER MESSAGE ──
 async function appendMessage(docSnap, colPath) {
-  const data = docSnap.data();
+  const data  = docSnap.data();
   const msgId = docSnap.id;
   const wrap  = document.getElementById('messages-wrap');
 
-  // Check if already rendered
   if(document.getElementById('msg-'+msgId)) return;
 
   const isMe = data.senderId === currentUser.uid;
-  const row  = document.createElement('div');
+
+  // ── Insert placeholder immediately so DOM order matches Firestore order ──
+  const row = document.createElement('div');
   row.className = `msg-row ${isMe ? 'outgoing' : 'incoming'}`;
-  row.id = 'msg-'+msgId;
+  row.id = 'msg-' + msgId;
+  wrap.appendChild(row);   // position reserved in correct order right now
 
   const time = data.createdAt?.toDate ? formatTime(data.createdAt.toDate()) : '';
 
   if(!data.locked) {
-    // Free message
+    // Free message — no async work needed
     row.innerHTML = `
       ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
       <div class="bubble ${isMe?'outgoing':'incoming'}">
@@ -880,13 +882,14 @@ async function appendMessage(docSnap, colPath) {
         <div>${esc(data.text)}</div>
         <div class="bubble-time">${time}${isMe?'<span class="tick">✓✓</span>':''}</div>
       </div>`;
+
   } else if(isMe) {
-    // Own locked message
+    // Own locked message — writer always sees full text
     row.innerHTML = `
       <div class="own-locked">
         <div class="own-locked-top">
           <span class="own-locked-label">🔒 Locked</span>
-          <span class="own-locked-price" id="op-${msgId}">🪙 ${data.price} pts</span>
+          <span class="own-locked-price">🪙 ${data.price} pts</span>
         </div>
         <div class="own-locked-text">${esc(data.text)}</div>
         <div class="bubble-time" style="text-align:right;font-size:10px;color:#aaa;">${time}</div>
@@ -895,17 +898,37 @@ async function appendMessage(docSnap, colPath) {
           <div class="stat">Earned <b id="ue-${msgId}">🪙 ${(data.unlockCount||0)*data.price}</b></div>
         </div>
       </div>`;
-    // Listen for unlock count updates
     listenUnlockCount(docSnap.ref, msgId, data.price);
-  } else {
-    // Someone else's locked message
-    // Check if current user has unlocked
-    const unlockRef = doc(db, `unlocks/${currentUser.uid}_${msgId}`);
-    const unlocked  = (await getDoc(unlockRef)).exists();
 
-    if(unlocked) {
+  } else {
+    // Someone else's locked message — show loading state first, then check unlock
+    row.innerHTML = `
+      ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
+      <div class="locked-card" id="lc-${msgId}">
+        <div class="locked-card-body">
+          <div class="sender-name">${esc(data.senderName||'')}</div>
+          <div class="blurred-text">${esc(data.text)}</div>
+        </div>
+        <div class="unlock-bar" onclick="openUnlock('${msgId}')">
+          <span class="ul-text">Unlock &amp; Read</span>
+          <span class="ul-price">${data.price} Points</span>
+        </div>
+      </div>`;
+
+    // Store for unlock modal — do this before the await so it's available immediately
+    unlockDataMap.set(msgId, { colPath, senderName: data.senderName||'', price: data.price, senderId: data.senderId });
+
+    // Now check unlock status async — row is already in the right position
+    const unlockRef  = doc(db, `unlocks/${currentUser.uid}_${msgId}`);
+    const unlockSnap = await getDoc(unlockRef);
+
+    // Guard: user may have switched chat while we awaited
+    if(currentChatId !== (colPath.split('/')[1])) return;
+
+    if(unlockSnap.exists()) {
+      // Replace with revealed card in-place
       row.innerHTML = `
-        ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
+        <div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>
         <div class="revealed-card">
           <div class="revealed-card-body">
             ${currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
@@ -914,25 +937,9 @@ async function appendMessage(docSnap, colPath) {
             <div class="revealed-badge">✓ Unlocked · ${data.price} pts spent</div>
           </div>
         </div>`;
-    } else {
-      // Store data safely in map
-      unlockDataMap.set(msgId, { colPath, senderName: data.senderName||'', price: data.price, senderId: data.senderId });
-      row.innerHTML = `
-        ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
-        <div class="locked-card" id="lc-${msgId}">
-          <div class="locked-card-body">
-            <div class="sender-name">${esc(data.senderName||'')}</div>
-            <div class="blurred-text">${esc(data.text)}</div>
-          </div>
-          <div class="unlock-bar" onclick="openUnlock('${msgId}')">
-            <span class="ul-text">Unlock &amp; Read</span>
-            <span class="ul-price">${data.price} Points</span>
-          </div>
-        </div>`;
     }
   }
 
-  wrap.appendChild(row);
   wrap.scrollTop = wrap.scrollHeight;
 }
 
