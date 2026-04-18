@@ -416,13 +416,34 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 .settings-item.danger{color:#D32F2F}
 .settings-item .si-icon{font-size:16px}
 
-/* Header more btn */
-#header-more{
-  margin-left:auto;background:none;border:none;
-  font-size:20px;cursor:pointer;color:var(--muted);
-  padding:6px 10px;border-radius:50%;transition:background .15s;position:relative
+/* Sidebar brand row with ⋮ */
+#sb-brand-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#sb-more-btn{
+  background:none;border:none;font-size:22px;cursor:pointer;
+  color:var(--muted);padding:4px 8px;border-radius:6px;
+  transition:background .15s;line-height:1
 }
-#header-more:hover{background:var(--bg)}
+#sb-more-btn:hover{background:var(--bg);color:var(--text)}
+
+/* Sidebar dropdown menu */
+#sb-menu{
+  display:none;position:absolute;top:58px;right:12px;
+  background:var(--white);border:1px solid var(--border);
+  border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.13);
+  min-width:210px;z-index:200;overflow:hidden
+}
+#sb-menu.show{display:block}
+
+/* Invite link button in header */
+#invite-btn{
+  background:none;border:1.5px solid var(--border);
+  border-radius:8px;padding:5px 10px;font-size:16px;
+  cursor:pointer;transition:all .2s;color:var(--blue)
+}
+#invite-btn:hover{background:var(--blue-light);border-color:var(--blue)}
+
+/* Header more btn — now removed from header, keep rule harmless */
+#header-more{display:none}
 
 /* Loading */
 #loading-screen{
@@ -461,7 +482,18 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   <!-- ── SIDEBAR ── -->
   <div id="sidebar">
     <div id="sb-top">
-      <div id="sb-brand">Rytr</div>
+      <div id="sb-brand-row">
+        <div id="sb-brand">Rytr</div>
+        <button id="sb-more-btn" onclick="toggleSbMenu(event)" title="Menu">⋮</button>
+      </div>
+      <!-- Sidebar dropdown menu -->
+      <div id="sb-menu">
+        <div class="settings-item" onclick="openSettings('email')"><span class="si-icon">✉️</span> Change Email</div>
+        <div class="settings-item" onclick="openSettings('password')"><span class="si-icon">🔒</span> Change Password</div>
+        <div class="settings-item" onclick="openSettings('mobile')"><span class="si-icon">📱</span> Mobile Number</div>
+        <div class="settings-item" id="create-room-item" style="display:none" onclick="closeSbMenu();document.getElementById('room-overlay').classList.add('show')"><span class="si-icon">➕</span> Create Room</div>
+        <div class="settings-item danger" onclick="doLogout()"><span class="si-icon">🚪</span> Logout</div>
+      </div>
       <div id="sb-balance-row">
         <div id="sb-balance-text">Your Balance: <span id="balance-val">0</span> Points</div>
         <button id="add-points-btn" onclick="openAddPoints()">Add Points</button>
@@ -479,7 +511,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 
     <!-- Search -->
     <div id="sb-search">
-      <input type="text" id="search-input" placeholder="Search..." oninput="filterSearch(this.value)"/>
+      <input type="text" id="search-input" placeholder="Search by name or email..." oninput="filterSearch(this.value)"/>
     </div>
 
     <!-- Chats tab -->
@@ -509,13 +541,8 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
         <div id="header-sub">—</div>
       </div>
       <div id="header-right">
-        <button id="header-more" onclick="toggleSettings(event)">⋮</button>
-      </div>
-      <div id="settings-menu">
-        <div class="settings-item" onclick="openSettings('email')"><span class="si-icon">✉️</span> Change Email</div>
-        <div class="settings-item" onclick="openSettings('password')"><span class="si-icon">🔒</span> Change Password</div>
-        <div class="settings-item" onclick="openSettings('mobile')"><span class="si-icon">📱</span> Mobile Number</div>
-        <div class="settings-item danger" onclick="doLogout()"><span class="si-icon">🚪</span> Logout</div>
+        <!-- Invite link button: only shown for writer's own rooms -->
+        <button id="invite-btn" style="display:none" onclick="showInviteLink()" title="Invite link">🔗</button>
       </div>
     </div>
 
@@ -612,6 +639,22 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   </div>
 </div>
 
+<!-- ── INVITE LINK MODAL ── -->
+<div class="overlay" id="invite-overlay">
+  <div class="modal">
+    <h3>🔗 Invite Link</h3>
+    <p>Share this link. Anyone logged in to Rytr will be taken directly into this room.</p>
+    <div id="invite-link-box" style="
+      background:#F5F5F5;border:1.5px solid #E0E0E0;border-radius:10px;
+      padding:12px 14px;font-size:12px;color:#3949AB;word-break:break-all;
+      font-family:monospace;margin:4px 0 16px;line-height:1.6"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeOverlay('invite-overlay')">Close</button>
+      <button class="modal-confirm" onclick="copyInviteLink()">Copy Link</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script type="module">
@@ -687,7 +730,7 @@ onAuthStateChanged(auth, async user => {
   }
 
   document.getElementById('loading-screen').style.display = 'none';
-  initUI();
+  await initUI();
   listenBalance();
   loadChats();
 
@@ -708,9 +751,24 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-function initUI() {
+async function initUI() {
   document.getElementById('balance-val').textContent = currentUserData.balance ?? 20;
   document.getElementById('earned-val').textContent  = currentUserData.earned  ?? 0;
+
+  // Show writer-only sidebar menu item
+  if(currentUserData.role === 'writer') {
+    document.getElementById('create-room-item').style.display = '';
+  }
+
+  // Check for invite link in URL: chat.html?room=ROOMID
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteRoomId = urlParams.get('room');
+  if(inviteRoomId) {
+    // Remove param from URL cleanly
+    window.history.replaceState({}, '', 'chat.html');
+    // Wait for auth then open the room
+    await joinRoomById(inviteRoomId);
+  }
 }
 
 // ── REAL-TIME BALANCE ──
@@ -839,6 +897,7 @@ async function openChat(chatId, type, meta) {
   document.getElementById('header-name').textContent = meta.name;
   document.getElementById('header-sub').textContent  = meta.sub || (type==='room'?'Group Room':'Direct Message');
   document.getElementById('header-initial').textContent = (meta.name[0]||'?').toUpperCase();
+  updateInviteBtn(chatId, type);
 
   // Start fresh listener for this chat only
   const colPath = type==='room' ? `rooms/${chatId}/messages` : `chats/${chatId}/messages`;
@@ -1194,7 +1253,53 @@ window.createRoom = async function() {
   }
 };
 
-// ── TAB SWITCH ──
+// ── INVITE LINK ──
+window.showInviteLink = function() {
+  const link = `${location.origin}/chat.html?room=${currentChatId}`;
+  document.getElementById('invite-link-box').textContent = link;
+  document.getElementById('invite-overlay').classList.add('show');
+}
+
+window.copyInviteLink = function() {
+  const link = document.getElementById('invite-link-box').textContent;
+  navigator.clipboard.writeText(link).then(() => {
+    toast('✅ Link copied to clipboard!');
+    closeOverlay('invite-overlay');
+  }).catch(() => {
+    // Fallback for browsers that block clipboard
+    const el = document.getElementById('invite-link-box');
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    toast('Select the link above and copy manually.');
+  });
+}
+
+async function joinRoomById(roomId) {
+  try {
+    const roomSnap = await getDoc(doc(db, 'rooms', roomId));
+    if(!roomSnap.exists()) { toast('Room not found or no longer exists.'); return; }
+    const room = roomSnap.data();
+    openChat(roomId, 'room', {
+      name: room.name || 'Room',
+      sub:  `by ${room.creatorName || 'Writer'}`
+    });
+    toast(`✅ Joined "${room.name}"!`);
+  } catch(e) {
+    toast('Could not join room. Try again.');
+  }
+}
+
+// Show invite button in header only for rooms the writer created
+function updateInviteBtn(chatId, type) {
+  const btn = document.getElementById('invite-btn');
+  if(type === 'room' && currentUserData.role === 'writer') {
+    btn.style.display = '';
+  } else {
+    btn.style.display = 'none';
+  }
+}
 window.switchTab = function(tab, el) {
   document.querySelectorAll('.sb-tab').forEach(t=>t.classList.remove('active'));
   if(el) el.classList.add('active');
@@ -1212,8 +1317,9 @@ window.filterSearch = function(q) {
     i.style.display = name.includes(lower) ? '' : 'none';
   });
   document.querySelectorAll('.writer-item').forEach(i => {
-    const name = i.querySelector('.wname')?.textContent?.toLowerCase()||'';
-    i.style.display = name.includes(lower) ? '' : 'none';
+    const name  = i.querySelector('.wname')?.textContent?.toLowerCase()||'';
+    const email = i.querySelector('.wsub')?.textContent?.toLowerCase()||'';
+    i.style.display = (name.includes(lower) || email.includes(lower)) ? '' : 'none';
   });
 }
 
@@ -1221,7 +1327,7 @@ window.filterSearch = function(q) {
 let settingsType = '';
 window.openSettings = function(type) {
   settingsType = type;
-  closeSettings();
+  closeSbMenu();
   const titles = { email:'Change Email', password:'Change Password', mobile:'Mobile Number' };
   document.getElementById('settings-title').textContent = titles[type]||'Settings';
   const c = document.getElementById('settings-content');
@@ -1239,9 +1345,6 @@ window.openSettings = function(type) {
       style="width:100%;padding:11px 14px;background:#F5F5F5;border:1.5px solid transparent;border-radius:10px;font-size:14px;font-family:Roboto,sans-serif;outline:none"/></div>`;
   }
   document.getElementById('settings-overlay').classList.add('show');
-}
-function closeSettings() {
-  document.getElementById('settings-menu').classList.remove('show');
 }
 window.saveSettings = async function() {
   try {
@@ -1274,20 +1377,24 @@ window.doLogout = async function() {
 // ── HELPERS ──
 window.closeOverlay = function(id) { document.getElementById(id).classList.remove('show') }
 
-// Use capture:true so stopPropagation in the button handler works correctly with ES modules
+// ── SIDEBAR MENU ──
+window.toggleSbMenu = function(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  document.getElementById('sb-menu').classList.toggle('show');
+}
+function closeSbMenu() {
+  document.getElementById('sb-menu').classList.remove('show');
+}
+
+// Close sidebar menu on outside click
 document.addEventListener('click', (e) => {
-  const menu = document.getElementById('settings-menu');
-  const btn  = document.getElementById('header-more');
+  const menu = document.getElementById('sb-menu');
+  const btn  = document.getElementById('sb-more-btn');
   if(menu && !menu.contains(e.target) && e.target !== btn) {
     menu.classList.remove('show');
   }
 }, true);
-
-window.toggleSettings = function(e) {
-  e.stopPropagation();
-  e.preventDefault();
-  document.getElementById('settings-menu').classList.toggle('show');
-}
 
 function formatTime(d) {
   if(!d) return '';
