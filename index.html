@@ -373,23 +373,33 @@ async function doLogin() {
 
     // Get role from Firestore
     const userDoc = await getDoc(doc(db,'users',user.uid));
-    const userData = userDoc.exists() ? userDoc.data() : {};
+    if(!userDoc.exists()) {
+      await signOut(auth);
+      setMsg('Account data not found. Please sign up again.', 'error');
+      btn.disabled = false; btn.innerHTML = 'Login';
+      return;
+    }
+    const userData = userDoc.data();
     const role = userData.role || 'reader';
 
-    // Check role matches tab
-    if(currentRole !== role && currentRole !== 'reader') {
+    // Block if suspended
+    if(userData.blocked) {
       await signOut(auth);
-      setMsg(`This account is registered as a ${role}. Please select the correct role tab.`, 'error');
+      setMsg('Your account has been suspended. Contact support.', 'error');
       btn.disabled = false; btn.innerHTML = 'Login';
       return;
     }
 
-    // Writer: check approved + not blocked
-    if(role === 'writer' && userData.blocked) {
+    // Make sure they're logging in on the right tab
+    // (Admin tab is handled separately above; here we only have reader/writer)
+    if(currentRole === 'writer' && role !== 'writer') {
       await signOut(auth);
-      setMsg('Your writer account has been suspended. Contact support.','error');
+      setMsg('This is not a writer account. Please use the Reader tab.', 'error');
       btn.disabled = false; btn.innerHTML = 'Login';
       return;
+    }
+    if(currentRole === 'reader' && role === 'writer') {
+      // Allow writers to also log in from reader tab — just redirect correctly
     }
 
     // Store role in sessionStorage for chat.html
@@ -397,7 +407,7 @@ async function doLogin() {
     sessionStorage.setItem('rytr_uid', user.uid);
     sessionStorage.setItem('rytr_name', userData.displayName || user.displayName || 'User');
 
-    window.location.href = role === 'admin' ? 'admin.html' : 'chat.html';
+    window.location.href = 'chat.html';
 
   } catch(e) {
     btn.disabled = false; btn.innerHTML = 'Login';
