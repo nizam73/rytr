@@ -921,6 +921,13 @@ async function openChat(chatId, type, meta) {
   document.getElementById('header-initial').textContent = (meta.name[0]||'?').toUpperCase();
   updateInviteBtn(chatId, type);
 
+  // Show empty chat placeholder — hidden once first message arrives
+  const placeholder = document.createElement('div');
+  placeholder.id = 'chat-placeholder';
+  placeholder.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#bbb;gap:10px;pointer-events:none;user-select:none';
+  placeholder.innerHTML = `<div style="font-size:44px">💬</div><div style="font-size:13px;font-weight:500">Send a message to start the conversation</div>`;
+  wrap.appendChild(placeholder);
+
   // Start fresh listener for this chat only
   const colPath = type==='room' ? `rooms/${chatId}/messages` : `chats/${chatId}/messages`;
   const msgQ = query(collection(db, colPath), orderBy('createdAt','asc'));
@@ -928,7 +935,18 @@ async function openChat(chatId, type, meta) {
     // Only process if this chat is still the active one
     if(currentChatId !== chatId) return;
     snap.docChanges().forEach(ch => {
-      if(ch.type === 'added') appendMessage(ch.doc, colPath);
+      if(ch.type === 'added') {
+        // Hide placeholder once any message exists
+        document.getElementById('chat-placeholder')?.remove();
+        appendMessage(ch.doc, colPath);
+        // Mark incoming messages as read
+        if(ch.doc.data().senderId !== currentUser.uid) {
+          const readBy = ch.doc.data().readBy || [];
+          if(!readBy.includes(currentUser.uid)) {
+            updateDoc(ch.doc.ref, { readBy: arrayUnion(currentUser.uid) }).catch(()=>{});
+          }
+        }
+      }
     });
   });
 }
@@ -956,13 +974,33 @@ async function appendMessage(docSnap, colPath) {
 
   if(!data.locked) {
     // Free message — no async work needed
+    const readBy  = data.readBy || [];
+    const isRead  = readBy.some(uid => uid !== currentUser.uid); // someone else read it
+    const tickClr = isMe ? (isRead ? '#fff' : 'rgba(255,255,255,.45)') : 'var(--blue)';
+    const tickTip = isRead ? 'Read' : 'Delivered';
     row.innerHTML = `
       ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
       <div class="bubble ${isMe?'outgoing':'incoming'}">
         ${!isMe && currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
         <div>${esc(data.text)}</div>
-        <div class="bubble-time">${time}${isMe?'<span class="tick">✓✓</span>':''}</div>
+        <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${tickTip}">✓✓</span>`:''}</div>
       </div>`;
+
+    // Live tick update: watch for when the other person reads this message
+    if(isMe) {
+      const tickUnsub = onSnapshot(docSnap.ref, snap => {
+        if(currentChatId !== (colPath.split('/')[1])) { tickUnsub(); return; }
+        const rb   = snap.data()?.readBy || [];
+        const read = rb.some(uid => uid !== currentUser.uid);
+        const tick = document.getElementById('tick-'+msgId);
+        if(tick) {
+          tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
+          tick.title       = read ? 'Read' : 'Delivered';
+        }
+      });
+      if(!msgListeners['_uc_'+currentChatId]) msgListeners['_uc_'+currentChatId] = [];
+      msgListeners['_uc_'+currentChatId].push(tickUnsub);
+    }
 
   } else if(isMe) {
     // Own locked message — writer always sees full text
@@ -1062,6 +1100,7 @@ window.sendMessage = async function() {
     locked,
     price:       locked ? price : 0,
     unlockCount: 0,
+    readBy:      [currentUser.uid],   // sender has already "read" their own message
     createdAt:   serverTimestamp()
   };
 
