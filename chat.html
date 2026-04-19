@@ -116,7 +116,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 }
 
 /* ── MAIN PANEL ── */
-#main{flex:1;display:flex;flex-direction:column;min-width:0}
+#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 
 /* Empty state */
 #empty-state{
@@ -411,7 +411,11 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 .room-join-btn:hover{background:var(--blue);color:#fff}
 
 /* Writer profile panel — sits inside #main */
-#writer-profile{display:none;flex-direction:column;flex:1;overflow:hidden}
+#writer-profile{
+  display:none;flex-direction:column;
+  width:100%;height:100%;overflow:hidden;
+  position:absolute;inset:0;background:var(--bg);z-index:5
+}
 #writer-profile.visible{display:flex}
 
 /* Writer profile room card */
@@ -1461,29 +1465,33 @@ window.switchTab = function(tab, el) {
 async function loadWriters() {
   const list = document.getElementById('writers-list');
   list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading writers...</div>';
-  const q = query(collection(db,'users'), where('role','==','writer'), where('blocked','==',false));
-  const snap = await getDocs(q);
-  list.innerHTML = '';
-  if(snap.empty) {
-    list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">No writers found.</div>';
-    return;
+  try {
+    const snap = await getDocs(collection(db,'users'));
+    list.innerHTML = '';
+    let count = 0;
+    snap.forEach(d => {
+      const wr = d.data();
+      if(wr.role !== 'writer') return;
+      if(wr.uid === currentUser.uid) return;
+      if(wr.blocked) return;
+      count++;
+      const item = document.createElement('div');
+      item.className = 'writer-item';
+      item.style.cursor = 'pointer';
+      item.innerHTML = `
+        <div class="writer-avi">${(wr.displayName||'W')[0].toUpperCase()}</div>
+        <div class="writer-info">
+          <div class="wname">${esc(wr.displayName||'Writer')}</div>
+          <div class="wsub">${wr.email||''}</div>
+        </div>
+        <span style="font-size:11px;color:var(--blue);flex-shrink:0">View →</span>`;
+      item.onclick = () => openWriterProfile(wr);
+      list.appendChild(item);
+    });
+    if(count === 0) list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">No writers found.</div>';
+  } catch(e) {
+    list.innerHTML = `<div style="padding:16px;color:red;font-size:12px">Error: ${e.message}</div>`;
   }
-  snap.forEach(d => {
-    const wr = d.data();
-    if(wr.uid === currentUser.uid) return;
-    const item = document.createElement('div');
-    item.className = 'writer-item';
-    item.style.cursor = 'pointer';
-    item.innerHTML = `
-      <div class="writer-avi">${(wr.displayName||'W')[0].toUpperCase()}</div>
-      <div class="writer-info">
-        <div class="wname">${esc(wr.displayName||'Writer')}</div>
-        <div class="wsub">${wr.email||''}</div>
-      </div>
-      <span style="font-size:11px;color:var(--blue);">View →</span>`;
-    item.onclick = () => openWriterProfile(wr);
-    list.appendChild(item);
-  });
 }
 
 // ── WRITER PROFILE ──
@@ -1503,10 +1511,10 @@ async function openWriterProfile(wr) {
   document.getElementById('wp-name').textContent = wr.displayName || 'Writer';
   document.getElementById('wp-email').textContent= wr.email || '';
 
-  // Chat Now button
-  document.getElementById('wp-chat-btn').onclick = () => {
-    closeWriterProfile();
-    startDM(wr.uid, wr.displayName||'Writer');
+  // Chat Now button — starts DM and closes profile
+  document.getElementById('wp-chat-btn').onclick = async () => {
+    document.getElementById('writer-profile').classList.remove('visible');
+    await startDM(wr.uid, wr.displayName||'Writer');
   };
 
   // Bio
@@ -1559,41 +1567,60 @@ async function openWriterProfile(wr) {
 
 window.closeWriterProfile = function() {
   document.getElementById('writer-profile').classList.remove('visible');
-  document.getElementById('empty-state').style.display  = '';
-  document.getElementById('compose').style.display      = 'none';
-  goBackToList();
+  if(currentChatId) {
+    // Restore the open chat view
+    document.getElementById('chat-header').classList.add('visible');
+    document.getElementById('messages-wrap').classList.add('visible');
+    document.getElementById('compose').style.display = 'flex';
+  } else {
+    document.getElementById('empty-state').style.display = '';
+  }
+  if(isMobile() && !currentChatId) goBackToList();
 }
 
 // ── ROOM BROWSER ──
 async function loadRoomsBrowse() {
   const list = document.getElementById('rooms-browse-list');
   list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading rooms...</div>';
-  const snap = await getDocs(query(collection(db,'rooms'), orderBy('createdAt','desc')));
-  list.innerHTML = '';
-  if(snap.empty) {
-    list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">No rooms yet.</div>';
-    return;
+  try {
+    // No orderBy — avoids composite index requirement. Sort client-side.
+    const snap = await getDocs(collection(db,'rooms'));
+    list.innerHTML = '';
+    if(snap.empty) {
+      list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">No rooms yet.</div>';
+      return;
+    }
+    // Sort by createdAt descending client-side
+    const docs = [];
+    snap.forEach(d => docs.push(d));
+    docs.sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
+
+    docs.forEach(d => {
+      const room = d.data();
+      const item = document.createElement('div');
+      item.className = 'room-browse-item';
+      item.innerHTML = `
+        <div class="room-browse-avi">${(room.name||'R')[0].toUpperCase()}</div>
+        <div class="room-browse-info">
+          <div class="room-browse-name">${esc(room.name||'Room')}</div>
+          <div class="room-browse-by">by ${esc(room.creatorName||'Writer')}</div>
+        </div>
+        <button class="room-join-btn">Join</button>`;
+      const join = () => {
+        switchTab('chats', document.querySelector('.sb-tab'));
+        openChat(d.id, 'room', { name: room.name, sub: `by ${room.creatorName||'Writer'}` });
+      };
+      item.querySelector('.room-join-btn').onclick = (e) => { e.stopPropagation(); join(); };
+      item.onclick = join;
+      list.appendChild(item);
+    });
+  } catch(e) {
+    list.innerHTML = `<div style="padding:16px;color:red;font-size:12px">Error: ${e.message}</div>`;
   }
-  snap.forEach(d => {
-    const room = d.data();
-    const item = document.createElement('div');
-    item.className = 'room-browse-item';
-    item.innerHTML = `
-      <div class="room-browse-avi">${(room.name||'R')[0].toUpperCase()}</div>
-      <div class="room-browse-info">
-        <div class="room-browse-name">${esc(room.name||'Room')}</div>
-        <div class="room-browse-by">by ${esc(room.creatorName||'Writer')}</div>
-      </div>
-      <button class="room-join-btn">Join</button>`;
-    const join = () => {
-      switchTab('chats', document.querySelector('.sb-tab'));
-      openChat(d.id, 'room', { name: room.name, sub: `by ${room.creatorName||'Writer'}` });
-    };
-    item.querySelector('.room-join-btn').onclick = (e) => { e.stopPropagation(); join(); };
-    item.onclick = join;
-    list.appendChild(item);
-  });
 }
+
+// ── WRITER PROFILE ──
+
 
 window.startDM = async function(writerId, writerName) {
   // Find or create a DM chat
@@ -1651,7 +1678,26 @@ window.createRoom = async function() {
   }
 };
 
-// ── INVITE LINK ──
+// ── HEADER CLICK → WRITER PROFILE ──
+window.onHeaderClick = async function() {
+  if(currentChatType !== 'dm') return; // rooms don't have a writer profile
+  // Find the other participant's uid from chatId (format: uid1_uid2)
+  const otherUid = currentChatId.split('_').find(u => u !== currentUser.uid);
+  if(!otherUid) return;
+  try {
+    const snap = await getDoc(doc(db, 'users', otherUid));
+    if(!snap.exists()) { toast('Could not load profile.'); return; }
+    const wr = snap.data();
+    if(wr.role !== 'writer') return; // only show profile for writers
+    // Hide current chat, show profile
+    document.getElementById('chat-header').classList.remove('visible');
+    document.getElementById('messages-wrap').classList.remove('visible');
+    document.getElementById('compose').style.display = 'none';
+    await openWriterProfile(wr);
+  } catch(e) {
+    toast('Could not load profile.');
+  }
+}
 // Writer copies their own profile invite link
 window.showWriterProfileLink = function() {
   const link = `${location.origin}/chat.html?writer=${currentUser.uid}`;
@@ -1732,22 +1778,6 @@ function updateInviteBtn(chatId, type) {
     btn.style.display = 'none';
   }
 }
-window.switchTab = function(tab, el) {
-  document.querySelectorAll('.sb-tab').forEach(t=>t.classList.remove('active'));
-  if(el) el.classList.add('active');
-  document.getElementById('chats-panel').style.display   = tab==='chats'   ? 'flex' : 'none';
-  document.getElementById('writers-panel').style.display = tab==='writers' ? 'flex' : 'none';
-  document.getElementById('sb-search').style.display     = '';
-  if(tab==='writers') {
-    // Activate Writers sub-tab by default
-    const firstDisc = document.querySelector('.disc-tab');
-    if(firstDisc && !document.querySelector('.disc-tab.active')) firstDisc.classList.add('active');
-    document.getElementById('writers-list').style.display      = '';
-    document.getElementById('rooms-browse-list').style.display = 'none';
-    loadWriters();
-  }
-}
-
 // ── SEARCH ──
 window.filterSearch = function(q) {
   const lower = q.toLowerCase();
