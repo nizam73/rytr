@@ -1466,14 +1466,14 @@ async function loadWriters() {
   const list = document.getElementById('writers-list');
   list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading writers...</div>';
   try {
-    // Only filter by role — avoids composite index. Filter blocked client-side.
-    const snap = await getDocs(query(collection(db,'users'), where('role','==','writer')));
+    const snap = await getDocs(collection(db,'users'));
     list.innerHTML = '';
     let count = 0;
     snap.forEach(d => {
       const wr = d.data();
+      if(wr.role !== 'writer') return;
       if(wr.uid === currentUser.uid) return;
-      if(wr.blocked) return; // filter client-side
+      if(wr.blocked) return;
       count++;
       const item = document.createElement('div');
       item.className = 'writer-item';
@@ -1490,8 +1490,7 @@ async function loadWriters() {
     });
     if(count === 0) list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">No writers found.</div>';
   } catch(e) {
-    list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Failed to load writers.</div>';
-    console.error('loadWriters error:', e);
+    list.innerHTML = `<div style="padding:16px;color:red;font-size:12px">Error: ${e.message}</div>`;
   }
 }
 
@@ -1616,10 +1615,11 @@ async function loadRoomsBrowse() {
       list.appendChild(item);
     });
   } catch(e) {
-    list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Failed to load rooms.</div>';
-    console.error('loadRoomsBrowse error:', e);
+    list.innerHTML = `<div style="padding:16px;color:red;font-size:12px">Error: ${e.message}</div>`;
   }
 }
+
+// ── WRITER PROFILE ──
 }
 
 window.startDM = async function(writerId, writerName) {
