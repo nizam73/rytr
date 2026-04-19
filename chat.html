@@ -27,7 +27,7 @@
 html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overflow:hidden}
 
 /* ── LAYOUT ── */
-#app{display:flex;height:100vh;max-width:1400px;margin:0 auto}
+#app{display:flex;height:100vh;height:100dvh;max-width:1400px;margin:0 auto}
 
 /* ── LEFT SIDEBAR ── */
 #sidebar{
@@ -379,8 +379,64 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* Find writers */
-#writers-list{flex:1;overflow-y:auto;padding:10px 0}
+/* Discover sub-tabs (Writers | Rooms) */
+.disc-tab{
+  flex:1;text-align:center;padding:10px 0;font-size:13px;
+  font-weight:500;color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s
+}
+.disc-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* Room browse card */
+.room-browse-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-bottom:1px solid #F5F5F5;
+  cursor:pointer;transition:background .15s
+}
+.room-browse-item:hover{background:#FAFAFA}
+.room-browse-avi{
+  width:44px;height:44px;border-radius:12px;
+  background:var(--blue-light);color:var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:700;flex-shrink:0
+}
+.room-browse-info{flex:1;min-width:0}
+.room-browse-name{font-size:14px;font-weight:600;color:var(--text)}
+.room-browse-by{font-size:12px;color:var(--muted);margin-top:2px}
+.room-join-btn{
+  background:var(--blue-light);color:var(--blue);border:none;
+  padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer;white-space:nowrap;
+  transition:all .2s
+}
+.room-join-btn:hover{background:var(--blue);color:#fff}
+
+/* Writer profile panel — sits inside #main */
+#writer-profile{display:none;flex-direction:column;flex:1;overflow:hidden}
+#writer-profile.visible{display:flex}
+
+/* Writer profile room card */
+.wp-room-card{
+  display:flex;align-items:center;gap:12px;
+  background:var(--white);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;margin-bottom:10px;
+  cursor:pointer;transition:box-shadow .2s
+}
+.wp-room-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.wp-room-icon{
+  width:40px;height:40px;border-radius:10px;
+  background:var(--blue-light);color:var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;flex-shrink:0
+}
+.wp-room-info{flex:1;min-width:0}
+.wp-room-name{font-size:14px;font-weight:600;color:var(--text)}
+.wp-room-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.wp-room-join{
+  background:var(--blue);color:#fff;border:none;
+  padding:6px 14px;border-radius:16px;font-size:12px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer
+}
 .writer-item{
   display:flex;align-items:center;gap:12px;
   padding:12px 16px;cursor:pointer;border-bottom:1px solid #F5F5F5;
@@ -474,11 +530,59 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 /* ── ADD ROOM / NEW CHAT in header area ── */
 #header-right{display:flex;align-items:center;gap:4px;margin-left:auto}
 
-/* Responsive */
-@media(max-width:700px){
-  #sidebar{width:100%;position:absolute;z-index:10;height:100%}
-  #sidebar.hidden{display:none}
-  #main{width:100%}
+/* ── RESPONSIVE — Mobile first, WhatsApp-style ── */
+@media(max-width:768px){
+  #app{position:relative;overflow:hidden}
+
+  /* Sidebar takes full width, slides in/out */
+  #sidebar{
+    position:absolute;inset:0;
+    width:100%;min-width:unset;
+    z-index:20;
+    transform:translateX(0);
+    transition:transform .28s cubic-bezier(.4,0,.2,1)
+  }
+  #sidebar.slide-out{
+    transform:translateX(-100%);
+    pointer-events:none
+  }
+
+  /* Main takes full width, hidden behind sidebar initially */
+  #main{
+    position:absolute;inset:0;
+    width:100%;
+    transform:translateX(100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1)
+  }
+  #main.slide-in{
+    transform:translateX(0)
+  }
+
+  /* Back button — only on mobile */
+  #back-btn{
+    display:flex;align-items:center;justify-content:center;
+    width:36px;height:36px;border-radius:50%;
+    background:none;border:none;cursor:pointer;
+    font-size:20px;color:var(--text);
+    transition:background .15s;flex-shrink:0
+  }
+  #back-btn:hover{background:var(--bg)}
+
+  /* Tighten header on small screens */
+  #chat-header{padding:10px 14px;gap:8px}
+  #messages-wrap{padding:12px 14px}
+  #compose{padding:8px 12px}
+
+  /* Sidebar search full width */
+  #sb-search input{font-size:14px}
+
+  /* Modals full width on mobile */
+  .modal{width:95%;max-width:unset;padding:22px 18px}
+}
+
+@media(min-width:769px){
+  /* Desktop: back button hidden */
+  #back-btn{display:none}
 }
 </style>
 </head>
@@ -507,6 +611,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
         <div class="settings-item" onclick="openSettings('email')"><span class="si-icon">✉️</span> Change Email</div>
         <div class="settings-item" onclick="openSettings('password')"><span class="si-icon">🔒</span> Change Password</div>
         <div class="settings-item" onclick="openSettings('mobile')"><span class="si-icon">📱</span> Mobile Number</div>
+        <div class="settings-item" id="bio-item" style="display:none" onclick="openSettings('bio')"><span class="si-icon">📝</span> Edit Bio</div>
         <div class="settings-item" id="create-room-item" style="display:none" onclick="closeSbMenu();document.getElementById('room-overlay').classList.add('show')"><span class="si-icon">➕</span> Create Room</div>
         <div class="settings-item danger" onclick="doLogout()"><span class="si-icon">🚪</span> Logout</div>
       </div>
@@ -536,8 +641,14 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
     </div>
 
     <!-- Writers tab -->
-    <div id="writers-panel" style="display:none;flex:1;overflow:hidden">
-      <div id="writers-list"></div>
+    <div id="writers-panel" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <!-- Sub-tabs: Writers | Rooms -->
+      <div id="discover-tabs" style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div class="disc-tab active" onclick="switchDiscover('writers',this)">Writers</div>
+        <div class="disc-tab" onclick="switchDiscover('rooms',this)">Rooms</div>
+      </div>
+      <div id="writers-list" style="overflow-y:auto;flex:1"></div>
+      <div id="rooms-browse-list" style="display:none;overflow-y:auto;flex:1"></div>
     </div>
   </div>
 
@@ -549,15 +660,49 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
       <p>Select a chat or find a writer to start</p>
     </div>
 
+    <!-- Writer Profile Panel (shown instead of chat when clicking a writer) -->
+    <div id="writer-profile" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <div id="wp-header" style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0">
+        <button id="wp-back-btn" onclick="closeWriterProfile()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;border-radius:50%">&#8592;</button>
+        <div id="wp-avi" style="width:42px;height:42px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0"></div>
+        <div>
+          <div id="wp-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
+          <div id="wp-email" style="font-size:12px;color:var(--muted)"></div>
+        </div>
+        <button id="wp-chat-btn" style="margin-left:auto;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;font-family:Roboto,sans-serif;cursor:pointer">Chat Now</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:20px">
+        <!-- Bio -->
+        <div id="wp-bio-box" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">About</div>
+          <div id="wp-bio" style="font-size:14px;color:var(--text);line-height:1.7"></div>
+        </div>
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">
+            <div id="wp-unlocks" style="font-size:24px;font-weight:700;color:var(--blue)">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">Total Unlocks</div>
+          </div>
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">
+            <div id="wp-rooms-count" style="font-size:24px;font-weight:700;color:var(--blue)">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">Rooms</div>
+          </div>
+        </div>
+        <!-- Rooms list -->
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Rooms</div>
+        <div id="wp-rooms-list"></div>
+      </div>
+    </div>
+
     <!-- Chat header -->
     <div id="chat-header">
+      <button id="back-btn" onclick="goBackToList()" title="Back">&#8592;</button>
       <div id="header-avatar"><span id="header-initial">?</span></div>
       <div id="header-info">
         <div id="header-name">—</div>
         <div id="header-sub">—</div>
       </div>
       <div id="header-right">
-        <!-- Invite link button: only shown for writer's own rooms -->
         <button id="invite-btn" style="display:none" onclick="showInviteLink()" title="Invite link">🔗</button>
       </div>
     </div>
@@ -775,7 +920,8 @@ async function initUI() {
   // Show writer-only sidebar menu item and link button
   if(currentUserData.role === 'writer') {
     document.getElementById('create-room-item').style.display = '';
-    document.getElementById('sb-link-btn').style.display = '';
+    document.getElementById('sb-link-btn').style.display      = '';
+    document.getElementById('bio-item').style.display         = '';
   }
 
   // Check for invite link in URL: chat.html?room=ROOMID or chat.html?writer=WRITERID
@@ -929,6 +1075,12 @@ async function openChat(chatId, type, meta) {
 
   // Clear unread badge for this chat
   updateBadge(chatId, 0);
+
+  // Slide to chat panel on mobile
+  showChatPanel();
+
+  // Push a history entry so browser back returns to list
+  if(isMobile()) history.pushState({ chat: chatId }, '');
 
   // Show empty chat placeholder — hidden once first message arrives
   const placeholder = document.createElement('div');
@@ -1293,6 +1445,16 @@ window.confirmAddPoints = async function() {
   toast(`✅ ${selectedPtsAmt} Points added!`);
 }
 
+// ── DISCOVER SUB-TABS ──
+window.switchDiscover = function(tab, el) {
+  document.querySelectorAll('.disc-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('writers-list').style.display       = tab === 'writers' ? '' : 'none';
+  document.getElementById('rooms-browse-list').style.display  = tab === 'rooms'   ? '' : 'none';
+  if(tab === 'writers') loadWriters();
+  if(tab === 'rooms')   loadRoomsBrowse();
+}
+
 // ── FIND WRITERS ──
 async function loadWriters() {
   const list = document.getElementById('writers-list');
@@ -1309,13 +1471,125 @@ async function loadWriters() {
     if(wr.uid === currentUser.uid) return;
     const item = document.createElement('div');
     item.className = 'writer-item';
+    item.style.cursor = 'pointer';
     item.innerHTML = `
       <div class="writer-avi">${(wr.displayName||'W')[0].toUpperCase()}</div>
       <div class="writer-info">
         <div class="wname">${esc(wr.displayName||'Writer')}</div>
         <div class="wsub">${wr.email||''}</div>
       </div>
-      <button class="chat-now-btn" onclick="startDM('${wr.uid}','${esc(wr.displayName||'Writer')}')">Chat Now</button>`;
+      <span style="font-size:11px;color:var(--blue);">View →</span>`;
+    item.onclick = () => openWriterProfile(wr);
+    list.appendChild(item);
+  });
+}
+
+// ── WRITER PROFILE ──
+async function openWriterProfile(wr) {
+  // Show profile panel, hide others
+  document.getElementById('empty-state').style.display    = 'none';
+  document.getElementById('chat-header').classList.remove('visible');
+  document.getElementById('messages-wrap').classList.remove('visible');
+  document.getElementById('compose').style.display        = 'none';
+  document.getElementById('writer-profile').classList.add('visible');
+
+  // On mobile: slide to main panel
+  showChatPanel();
+
+  // Fill in header
+  document.getElementById('wp-avi').textContent  = (wr.displayName||'W')[0].toUpperCase();
+  document.getElementById('wp-name').textContent = wr.displayName || 'Writer';
+  document.getElementById('wp-email').textContent= wr.email || '';
+
+  // Chat Now button
+  document.getElementById('wp-chat-btn').onclick = () => {
+    closeWriterProfile();
+    startDM(wr.uid, wr.displayName||'Writer');
+  };
+
+  // Bio
+  document.getElementById('wp-bio').textContent =
+    wr.bio || 'This writer hasn\'t added a bio yet.';
+
+  // Stats
+  document.getElementById('wp-unlocks').textContent = wr.earned
+    ? Math.round((wr.earned) / 10) // rough unlock estimate: earned ÷ avg price
+    : '0';
+  // Better: sum unlockCount from messages — but that's expensive; show earned pts
+  document.getElementById('wp-unlocks').textContent = wr.earned || 0;
+  document.getElementById('wp-unlocks').nextElementSibling.textContent = 'Points Earned';
+
+  // Load this writer's rooms
+  const roomsSnap = await getDocs(
+    query(collection(db,'rooms'), where('createdBy','==', wr.uid))
+  );
+  const roomsList = document.getElementById('wp-rooms-list');
+  roomsList.innerHTML = '';
+  document.getElementById('wp-rooms-count').textContent = roomsSnap.size;
+
+  if(roomsSnap.empty) {
+    roomsList.innerHTML = '<div style="font-size:13px;color:#bbb;padding:8px 0">No rooms yet.</div>';
+  } else {
+    roomsSnap.forEach(rd => {
+      const room = rd.data();
+      const card = document.createElement('div');
+      card.className = 'wp-room-card';
+      card.innerHTML = `
+        <div class="wp-room-icon">${(room.name||'R')[0].toUpperCase()}</div>
+        <div class="wp-room-info">
+          <div class="wp-room-name">${esc(room.name||'Room')}</div>
+          <div class="wp-room-sub">by ${esc(room.creatorName||wr.displayName||'Writer')}</div>
+        </div>
+        <button class="wp-room-join">Join</button>`;
+      card.querySelector('.wp-room-join').onclick = (e) => {
+        e.stopPropagation();
+        closeWriterProfile();
+        openChat(rd.id, 'room', { name: room.name, sub: `by ${room.creatorName||wr.displayName}` });
+      };
+      card.onclick = () => {
+        closeWriterProfile();
+        openChat(rd.id, 'room', { name: room.name, sub: `by ${room.creatorName||wr.displayName}` });
+      };
+      roomsList.appendChild(card);
+    });
+  }
+}
+
+window.closeWriterProfile = function() {
+  document.getElementById('writer-profile').classList.remove('visible');
+  document.getElementById('empty-state').style.display = '';
+  document.getElementById('compose').style.display     = '';
+  // On mobile: go back to sidebar
+  goBackToList();
+}
+
+// ── ROOM BROWSER ──
+async function loadRoomsBrowse() {
+  const list = document.getElementById('rooms-browse-list');
+  list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading rooms...</div>';
+  const snap = await getDocs(query(collection(db,'rooms'), orderBy('createdAt','desc')));
+  list.innerHTML = '';
+  if(snap.empty) {
+    list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">No rooms yet.</div>';
+    return;
+  }
+  snap.forEach(d => {
+    const room = d.data();
+    const item = document.createElement('div');
+    item.className = 'room-browse-item';
+    item.innerHTML = `
+      <div class="room-browse-avi">${(room.name||'R')[0].toUpperCase()}</div>
+      <div class="room-browse-info">
+        <div class="room-browse-name">${esc(room.name||'Room')}</div>
+        <div class="room-browse-by">by ${esc(room.creatorName||'Writer')}</div>
+      </div>
+      <button class="room-join-btn">Join</button>`;
+    const join = () => {
+      switchTab('chats', document.querySelector('.sb-tab'));
+      openChat(d.id, 'room', { name: room.name, sub: `by ${room.creatorName||'Writer'}` });
+    };
+    item.querySelector('.room-join-btn').onclick = (e) => { e.stopPropagation(); join(); };
+    item.onclick = join;
     list.appendChild(item);
   });
 }
@@ -1440,25 +1714,11 @@ async function joinWriterDM(writerId) {
     const writerSnap = await getDoc(doc(db, 'users', writerId));
     if(!writerSnap.exists()) { toast('Writer not found.'); return; }
     const wr = writerSnap.data();
-    const writerName = wr.displayName || 'Writer';
-    const chatId = [currentUser.uid, writerId].sort().join('_');
-    const chatRef = doc(db, 'chats', chatId);
-    const chatSnap = await getDoc(chatRef);
-    if(!chatSnap.exists()) {
-      await setDoc(chatRef, {
-        participants:     [currentUser.uid, writerId],
-        participantNames: {
-          [currentUser.uid]: currentUserData.displayName||'User',
-          [writerId]:        writerName
-        },
-        lastMessage:   '',
-        lastMessageAt: serverTimestamp()
-      });
-    }
-    openChat(chatId, 'dm', { name: writerName, sub: 'Direct Message' });
-    toast(`✅ Opened chat with ${writerName}!`);
+    // Show profile page first — reader can then choose to chat or join a room
+    switchTab('writers', document.querySelector('.sb-tab:last-child'));
+    await openWriterProfile(wr);
   } catch(e) {
-    toast('Could not open chat. Try again.');
+    toast('Could not load writer profile. Try again.');
   }
 }
 
@@ -1474,10 +1734,17 @@ function updateInviteBtn(chatId, type) {
 window.switchTab = function(tab, el) {
   document.querySelectorAll('.sb-tab').forEach(t=>t.classList.remove('active'));
   if(el) el.classList.add('active');
-  document.getElementById('chats-panel').style.display  = tab==='chats'   ? 'flex' : 'none';
-  document.getElementById('writers-panel').style.display= tab==='writers' ? '' : 'none';
-  document.getElementById('sb-search').style.display    = '';
-  if(tab==='writers') loadWriters();
+  document.getElementById('chats-panel').style.display   = tab==='chats'   ? 'flex' : 'none';
+  document.getElementById('writers-panel').style.display = tab==='writers' ? 'flex' : 'none';
+  document.getElementById('sb-search').style.display     = '';
+  if(tab==='writers') {
+    // Activate Writers sub-tab by default
+    const firstDisc = document.querySelector('.disc-tab');
+    if(firstDisc && !document.querySelector('.disc-tab.active')) firstDisc.classList.add('active');
+    document.getElementById('writers-list').style.display      = '';
+    document.getElementById('rooms-browse-list').style.display = 'none';
+    loadWriters();
+  }
 }
 
 // ── SEARCH ──
@@ -1491,6 +1758,11 @@ window.filterSearch = function(q) {
     const name  = i.querySelector('.wname')?.textContent?.toLowerCase()||'';
     const email = i.querySelector('.wsub')?.textContent?.toLowerCase()||'';
     i.style.display = (name.includes(lower) || email.includes(lower)) ? '' : 'none';
+  });
+  document.querySelectorAll('.room-browse-item').forEach(i => {
+    const name = i.querySelector('.room-browse-name')?.textContent?.toLowerCase()||'';
+    const by   = i.querySelector('.room-browse-by')?.textContent?.toLowerCase()||'';
+    i.style.display = (name.includes(lower) || by.includes(lower)) ? '' : 'none';
   });
 }
 
@@ -1510,10 +1782,14 @@ window.openSettings = function(type) {
     c.innerHTML = `<div class="field"><label style="font-size:13px;color:#666;display:block;margin-bottom:7px;font-weight:500">New Password</label>
     <input type="password" id="set-pass" placeholder="Min 6 chars"
       style="width:100%;padding:11px 14px;background:#F5F5F5;border:1.5px solid transparent;border-radius:10px;font-size:14px;font-family:Roboto,sans-serif;outline:none"/></div>`;
-  } else {
+  } else if(type==='mobile') {
     c.innerHTML = `<div class="field"><label style="font-size:13px;color:#666;display:block;margin-bottom:7px;font-weight:500">Mobile Number</label>
     <input type="tel" id="set-mobile" value="${currentUserData.mobile||''}" placeholder="+880..."
       style="width:100%;padding:11px 14px;background:#F5F5F5;border:1.5px solid transparent;border-radius:10px;font-size:14px;font-family:Roboto,sans-serif;outline:none"/></div>`;
+  } else if(type==='bio') {
+    c.innerHTML = `<div class="field"><label style="font-size:13px;color:#666;display:block;margin-bottom:7px;font-weight:500">Your Bio</label>
+    <textarea id="set-bio" placeholder="Tell readers about yourself..." rows="4"
+      style="width:100%;padding:11px 14px;background:#F5F5F5;border:1.5px solid transparent;border-radius:10px;font-size:14px;font-family:Roboto,sans-serif;outline:none;resize:none">${esc(currentUserData.bio||'')}</textarea></div>`;
   }
   document.getElementById('settings-overlay').classList.add('show');
 }
@@ -1528,10 +1804,16 @@ window.saveSettings = async function() {
       if(p.length<6) { toast('Password too short'); return; }
       await updatePassword(currentUser, p);
       toast('Password updated!');
-    } else {
+    } else if(settingsType==='mobile') {
       const m = document.getElementById('set-mobile').value.trim();
       await updateDoc(doc(db,'users',currentUser.uid), { mobile:m });
+      currentUserData.mobile = m;
       toast('Mobile saved!');
+    } else if(settingsType==='bio') {
+      const b = document.getElementById('set-bio').value.trim();
+      await updateDoc(doc(db,'users',currentUser.uid), { bio:b });
+      currentUserData.bio = b;
+      toast('Bio updated!');
     }
     closeOverlay('settings-overlay');
   } catch(e) {
@@ -1548,7 +1830,27 @@ window.doLogout = async function() {
 // ── HELPERS ──
 window.closeOverlay = function(id) { document.getElementById(id).classList.remove('show') }
 
-// ── SIDEBAR MENU ──
+// ── MOBILE PANEL NAVIGATION ──
+function isMobile() { return window.innerWidth <= 768; }
+
+function showChatPanel() {
+  if(!isMobile()) return;
+  document.getElementById('sidebar').classList.add('slide-out');
+  document.getElementById('main').classList.add('slide-in');
+}
+
+window.goBackToList = function() {
+  if(!isMobile()) return;
+  document.getElementById('sidebar').classList.remove('slide-out');
+  document.getElementById('main').classList.remove('slide-in');
+}
+
+// Handle browser back gesture on mobile
+window.addEventListener('popstate', () => {
+  if(isMobile() && document.getElementById('main').classList.contains('slide-in')) {
+    goBackToList();
+  }
+});
 window.toggleSbMenu = function(e) {
   e.stopPropagation();
   e.preventDefault();
@@ -1566,6 +1868,14 @@ document.addEventListener('click', (e) => {
     menu.classList.remove('show');
   }
 }, true);
+
+// Clean up mobile slide classes if window resized to desktop
+window.addEventListener('resize', () => {
+  if(!isMobile()) {
+    document.getElementById('sidebar').classList.remove('slide-out');
+    document.getElementById('main').classList.remove('slide-in');
+  }
+});
 
 function formatTime(d) {
   if(!d) return '';
