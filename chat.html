@@ -260,10 +260,10 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 .stat{font-size:11px;color:#888}
 .stat b{color:var(--blue);font-weight:600}
 
-/* Unlock count chip */
-.unlock-count{
-  font-size:10px;color:var(--muted);
-  display:flex;align-items:center;gap:3px;margin-top:4px
+/* Unlock count FOMO on locked cards */
+.locked-fomo{
+  font-size:11px;color:var(--blue);font-weight:600;
+  margin-top:6px;display:flex;align-items:center;gap:4px
 }
 
 /* ── COMPOSE BAR ── */
@@ -697,16 +697,17 @@ const auth = getAuth(app);
 const db   = getFirestore(app);
 
 // ── STATE ──
-let currentUser   = null;
+let currentUser     = null;
 let currentUserData = null;
-let currentChatId = null;
-let currentChatType = null; // 'dm' | 'room'
+let currentChatId   = null;
+let currentChatType = null;
 let currentChatMeta = {};
-let isLocked      = false;
-let selectedPtsAmt = 0;
-let pendingUnlock = null;
-let msgListeners  = {};
-let chatListeners = {};
+let isLocked        = false;
+let selectedPtsAmt  = 0;
+let pendingUnlock   = null;
+let msgListeners    = {};
+let chatListeners   = {};
+let unreadCounts    = {};
 
 // ── AUTH GATE ──
 onAuthStateChanged(auth, async user => {
@@ -805,39 +806,34 @@ async function loadChats() {
   const list = document.getElementById('chat-list');
   list.innerHTML = '';
 
-  // 1. DM chats — no orderBy to avoid needing a composite Firestore index
+  // 1. DM chats
   const dmQ = query(
     collection(db,'chats'),
     where('participants','array-contains', currentUser.uid)
   );
   onSnapshot(dmQ, snap => {
     snap.docChanges().forEach(ch => {
-      if(ch.type === 'removed') {
-        document.getElementById('ci-'+ch.doc.id)?.remove();
-      } else {
-        renderChatItem(ch.doc, 'dm');
-      }
+      if(ch.type === 'removed') document.getElementById('ci-'+ch.doc.id)?.remove();
+      else renderChatItem(ch.doc, 'dm');
     });
     sortChatList();
   });
 
-  // 2. Rooms — simple query, no compound index needed
+  // 2. Rooms
   const roomQ = query(collection(db,'rooms'), orderBy('createdAt','desc'));
   onSnapshot(roomQ, snap => {
     snap.docChanges().forEach(ch => {
-      if(ch.type === 'removed') {
-        document.getElementById('ci-'+ch.doc.id)?.remove();
-      } else {
-        renderChatItem(ch.doc, 'room');
-      }
+      if(ch.type === 'removed') document.getElementById('ci-'+ch.doc.id)?.remove();
+      else renderChatItem(ch.doc, 'room');
     });
+    sortChatList();   // ← was missing for rooms
   });
 }
 
 function sortChatList() {
-  const list = document.getElementById('chat-list');
-  const items = [...list.querySelectorAll('.chat-item[data-ts]')];
-  items.sort((a,b) => (b.dataset.ts||0) - (a.dataset.ts||0));
+  const list  = document.getElementById('chat-list');
+  const items = [...list.querySelectorAll('.chat-item')];
+  items.sort((a,b) => (Number(b.dataset.ts)||0) - (Number(a.dataset.ts)||0));
   items.forEach(i => list.appendChild(i));
 }
 
@@ -846,15 +842,22 @@ function renderChatItem(docSnap, type) {
   const id   = docSnap.id;
   const list = document.getElementById('chat-list');
 
-  // Remove existing item if present
-  const existing = document.getElementById('ci-'+id);
-  if(existing) existing.remove();
+  // Remove existing item so it re-renders with fresh data
+  document.getElementById('ci-'+id)?.remove();
 
   const item = document.createElement('div');
   item.className = 'chat-item' + (id === currentChatId ? ' active' : '');
   item.id = 'ci-'+id;
 
-  const time = data.lastMessageAt?.toDate ? formatTime(data.lastMessageAt.toDate()) : '';
+  // serverTimestamp() returns null on the client until Firestore confirms it.
+  // Fall back to createdAt, then Date.now() so new chats appear at the top.
+  const ts = data.lastMessageAt?.seconds
+          || data.lastMessageAt?.nanoseconds  // hasPendingWrites snapshot
+          || data.createdAt?.seconds
+          || Math.floor(Date.now()/1000);
+  item.dataset.ts = ts;
+
+  const time    = data.lastMessageAt?.toDate ? formatTime(data.lastMessageAt.toDate()) : '';
   const preview = data.lastMessage || '';
 
   let name, sub, initial;
@@ -863,15 +866,12 @@ function renderChatItem(docSnap, type) {
     sub     = `<span class="by-writer">by ${data.creatorName||'Writer'}</span>`;
     initial = (name[0]||'R').toUpperCase();
   } else {
-    // DM: find the other participant's name
-    const otherId = (data.participants||[]).find(p=>p!==currentUser.uid);
+    const otherId = (data.participants||[]).find(p => p !== currentUser.uid);
     name    = data.participantNames?.[otherId] || 'User';
     sub     = '';
     initial = (name[0]||'U').toUpperCase();
   }
 
-  const ts = data.lastMessageAt?.seconds || data.createdAt?.seconds || 0;
-  item.dataset.ts = ts;
   item.innerHTML = `
     <div class="chat-avatar">${initial}</div>
     <div class="chat-info">
@@ -885,6 +885,12 @@ function renderChatItem(docSnap, type) {
     </div>`;
   item.onclick = () => openChat(id, type, { name, sub: type==='room'?`by ${data.creatorName||'Writer'}`:'' });
   list.appendChild(item);
+
+  // Watch for unread messages on this chat
+  if(!chatListeners[id]) {
+    chatListeners[id] = true;
+    listenUnreadForChat(id, type);
+  }
 }
 
 // ── OPEN CHAT ──
@@ -920,6 +926,9 @@ async function openChat(chatId, type, meta) {
   document.getElementById('header-sub').textContent  = meta.sub || (type==='room'?'Group Room':'Direct Message');
   document.getElementById('header-initial').textContent = (meta.name[0]||'?').toUpperCase();
   updateInviteBtn(chatId, type);
+
+  // Clear unread badge for this chat
+  updateBadge(chatId, 0);
 
   // Show empty chat placeholder — hidden once first message arrives
   const placeholder = document.createElement('div');
@@ -1020,22 +1029,28 @@ async function appendMessage(docSnap, colPath) {
     listenUnlockCount(docSnap.ref, msgId, data.price, currentChatId);
 
   } else {
-    // Someone else's locked message — show loading state first, then check unlock
+    // Someone else's locked message — show placeholder first, check unlock async
+    // Store for unlock modal before innerHTML so it's available on click
+    unlockDataMap.set(msgId, { colPath, senderName: data.senderName||'', price: data.price, senderId: data.senderId });
+
+    const unlockCount = data.unlockCount || 0;
+    const fomoText = unlockCount > 0
+      ? `<div class="locked-fomo">🔥 ${unlockCount} ${unlockCount === 1 ? 'person has' : 'people have'} unlocked this</div>`
+      : '';
+
     row.innerHTML = `
       ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
       <div class="locked-card" id="lc-${msgId}">
         <div class="locked-card-body">
           <div class="sender-name">${esc(data.senderName||'')}</div>
           <div class="blurred-text">${esc(data.text)}</div>
+          ${fomoText}
         </div>
         <div class="unlock-bar" onclick="openUnlock('${msgId}')">
           <span class="ul-text">Unlock &amp; Read</span>
           <span class="ul-price">${data.price} Points</span>
         </div>
       </div>`;
-
-    // Store for unlock modal — do this before the await so it's available immediately
-    unlockDataMap.set(msgId, { colPath, senderName: data.senderName||'', price: data.price, senderId: data.senderId });
 
     // Now check unlock status async — row is already in the right position
     const unlockRef  = doc(db, `unlocks/${currentUser.uid}_${msgId}`);
@@ -1060,6 +1075,48 @@ async function appendMessage(docSnap, colPath) {
   }
 
   wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ── FEATURE: UNREAD BADGES ──
+function listenUnreadForChat(chatId, type) {
+  const colPath = type === 'room'
+    ? `rooms/${chatId}/messages`
+    : `chats/${chatId}/messages`;
+  // Watch last 30 messages for unread
+  const q = query(collection(db, colPath), orderBy('createdAt','desc'), limit(30));
+  onSnapshot(q, snap => {
+    if(currentChatId === chatId) {
+      // Currently open — mark all as read, no badge
+      updateBadge(chatId, 0);
+      return;
+    }
+    let count = 0;
+    snap.forEach(d => {
+      const msg = d.data();
+      if(msg.senderId !== currentUser.uid) {
+        const readBy = msg.readBy || [];
+        if(!readBy.includes(currentUser.uid)) count++;
+      }
+    });
+    updateBadge(chatId, count);
+  });
+}
+
+function updateBadge(chatId, count) {
+  unreadCounts[chatId] = count;
+  const item  = document.getElementById('ci-'+chatId);
+  if(!item) return;
+  let badge = item.querySelector('.chat-badge');
+  if(count > 0) {
+    if(!badge) {
+      badge = document.createElement('div');
+      badge.className = 'chat-badge';
+      item.appendChild(badge);
+    }
+    badge.textContent = count > 99 ? '99+' : count;
+  } else {
+    badge?.remove();
+  }
 }
 
 function listenUnlockCount(ref, msgId, price, chatId) {
