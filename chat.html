@@ -1496,72 +1496,67 @@ async function loadWriters() {
 
 // ── WRITER PROFILE ──
 async function openWriterProfile(wr) {
-  // Show profile panel, hide others
+  // Show profile panel immediately
   document.getElementById('empty-state').style.display    = 'none';
   document.getElementById('chat-header').classList.remove('visible');
   document.getElementById('messages-wrap').classList.remove('visible');
   document.getElementById('compose').style.display        = 'none';
   document.getElementById('writer-profile').classList.add('visible');
-
-  // On mobile: slide to main panel
   showChatPanel();
 
-  // Fill in header
-  document.getElementById('wp-avi').textContent  = (wr.displayName||'W')[0].toUpperCase();
-  document.getElementById('wp-name').textContent = wr.displayName || 'Writer';
-  document.getElementById('wp-email').textContent= wr.email || '';
+  // Fill header
+  document.getElementById('wp-avi').textContent   = (wr.displayName||'W')[0].toUpperCase();
+  document.getElementById('wp-name').textContent  = wr.displayName || 'Writer';
+  document.getElementById('wp-email').textContent = wr.email || '';
+  document.getElementById('wp-bio').textContent   = wr.bio || 'This writer hasn\'t added a bio yet.';
+  document.getElementById('wp-unlocks').textContent = wr.earned || 0;
+  document.getElementById('wp-unlocks').nextElementSibling.textContent = 'Points Earned';
+  document.getElementById('wp-rooms-count').textContent = '...';
 
-  // Chat Now button — starts DM and closes profile
+  // Chat Now
   document.getElementById('wp-chat-btn').onclick = async () => {
     document.getElementById('writer-profile').classList.remove('visible');
     await startDM(wr.uid, wr.displayName||'Writer');
   };
 
-  // Bio
-  document.getElementById('wp-bio').textContent =
-    wr.bio || 'This writer hasn\'t added a bio yet.';
-
-  // Stats
-  document.getElementById('wp-unlocks').textContent = wr.earned
-    ? Math.round((wr.earned) / 10) // rough unlock estimate: earned ÷ avg price
-    : '0';
-  // Better: sum unlockCount from messages — but that's expensive; show earned pts
-  document.getElementById('wp-unlocks').textContent = wr.earned || 0;
-  document.getElementById('wp-unlocks').nextElementSibling.textContent = 'Points Earned';
-
-  // Load this writer's rooms
-  const roomsSnap = await getDocs(
-    query(collection(db,'rooms'), where('createdBy','==', wr.uid))
-  );
+  // Load writer's rooms — no where() filter, avoid index requirement
   const roomsList = document.getElementById('wp-rooms-list');
-  roomsList.innerHTML = '';
-  document.getElementById('wp-rooms-count').textContent = roomsSnap.size;
-
-  if(roomsSnap.empty) {
-    roomsList.innerHTML = '<div style="font-size:13px;color:#bbb;padding:8px 0">No rooms yet.</div>';
-  } else {
-    roomsSnap.forEach(rd => {
-      const room = rd.data();
-      const card = document.createElement('div');
-      card.className = 'wp-room-card';
-      card.innerHTML = `
-        <div class="wp-room-icon">${(room.name||'R')[0].toUpperCase()}</div>
-        <div class="wp-room-info">
-          <div class="wp-room-name">${esc(room.name||'Room')}</div>
-          <div class="wp-room-sub">by ${esc(room.creatorName||wr.displayName||'Writer')}</div>
-        </div>
-        <button class="wp-room-join">Join</button>`;
-      card.querySelector('.wp-room-join').onclick = (e) => {
-        e.stopPropagation();
-        closeWriterProfile();
-        openChat(rd.id, 'room', { name: room.name, sub: `by ${room.creatorName||wr.displayName}` });
-      };
-      card.onclick = () => {
-        closeWriterProfile();
-        openChat(rd.id, 'room', { name: room.name, sub: `by ${room.creatorName||wr.displayName}` });
-      };
-      roomsList.appendChild(card);
+  roomsList.innerHTML = '<div style="font-size:13px;color:#bbb">Loading rooms...</div>';
+  try {
+    const allRooms = await getDocs(collection(db,'rooms'));
+    const writerRooms = [];
+    allRooms.forEach(rd => {
+      if(rd.data().createdBy === wr.uid) writerRooms.push(rd);
     });
+
+    document.getElementById('wp-rooms-count').textContent = writerRooms.length;
+    roomsList.innerHTML = '';
+
+    if(writerRooms.length === 0) {
+      roomsList.innerHTML = '<div style="font-size:13px;color:#bbb;padding:8px 0">No rooms yet.</div>';
+    } else {
+      writerRooms.forEach(rd => {
+        const room = rd.data();
+        const card = document.createElement('div');
+        card.className = 'wp-room-card';
+        card.innerHTML = `
+          <div class="wp-room-icon">${(room.name||'R')[0].toUpperCase()}</div>
+          <div class="wp-room-info">
+            <div class="wp-room-name">${esc(room.name||'Room')}</div>
+            <div class="wp-room-sub">by ${esc(room.creatorName||wr.displayName||'Writer')}</div>
+          </div>
+          <button class="wp-room-join">Join</button>`;
+        const enter = () => {
+          closeWriterProfile();
+          openChat(rd.id, 'room', { name: room.name, sub: `by ${room.creatorName||wr.displayName}` });
+        };
+        card.querySelector('.wp-room-join').onclick = e => { e.stopPropagation(); enter(); };
+        card.onclick = enter;
+        roomsList.appendChild(card);
+      });
+    }
+  } catch(e) {
+    roomsList.innerHTML = `<div style="font-size:12px;color:red">Could not load rooms: ${e.message}</div>`;
   }
 }
 
@@ -1619,9 +1614,7 @@ async function loadRoomsBrowse() {
   }
 }
 
-// ── WRITER PROFILE ──
-
-
+// ── START DM ──
 window.startDM = async function(writerId, writerName) {
   // Find or create a DM chat
   const chatId1 = [currentUser.uid, writerId].sort().join('_');
