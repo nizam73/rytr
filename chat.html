@@ -1488,7 +1488,7 @@ async function loadWriters() {
           <div class="wsub">${wr.email||''}</div>
         </div>
         <span style="font-size:11px;color:var(--blue);flex-shrink:0">View →</span>`;
-      item.onclick = () => openWriterProfile(wr);
+      item.onclick = () => openWriterProfile(wr, 'list');
       list.appendChild(item);
     });
     if(count === 0) list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">No writers found.</div>';
@@ -1498,8 +1498,12 @@ async function loadWriters() {
 }
 
 // ── WRITER PROFILE ──
-async function openWriterProfile(wr) {
-  // Show profile panel immediately
+// Track where the profile was opened from: 'list' | 'chat'
+let writerProfileSource = 'list';
+
+async function openWriterProfile(wr, source='list') {
+  writerProfileSource = source;
+
   document.getElementById('empty-state').style.display    = 'none';
   document.getElementById('chat-header').classList.remove('visible');
   document.getElementById('messages-wrap').classList.remove('visible');
@@ -1507,7 +1511,6 @@ async function openWriterProfile(wr) {
   document.getElementById('writer-profile').classList.add('visible');
   showChatPanel();
 
-  // Fill header
   document.getElementById('wp-avi').textContent   = (wr.displayName||'W')[0].toUpperCase();
   document.getElementById('wp-name').textContent  = wr.displayName || 'Writer';
   document.getElementById('wp-email').textContent = wr.email || '';
@@ -1516,13 +1519,11 @@ async function openWriterProfile(wr) {
   document.getElementById('wp-unlocks').nextElementSibling.textContent = 'Points Earned';
   document.getElementById('wp-rooms-count').textContent = '...';
 
-  // Chat Now
   document.getElementById('wp-chat-btn').onclick = async () => {
     document.getElementById('writer-profile').classList.remove('visible');
     await startDM(wr.uid, wr.displayName||'Writer');
   };
 
-  // Load writer's rooms — no where() filter, avoid index requirement
   const roomsList = document.getElementById('wp-rooms-list');
   roomsList.innerHTML = '<div style="font-size:13px;color:#bbb">Loading rooms...</div>';
   try {
@@ -1531,10 +1532,8 @@ async function openWriterProfile(wr) {
     allRooms.forEach(rd => {
       if(rd.data().createdBy === wr.uid) writerRooms.push(rd);
     });
-
     document.getElementById('wp-rooms-count').textContent = writerRooms.length;
     roomsList.innerHTML = '';
-
     if(writerRooms.length === 0) {
       roomsList.innerHTML = '<div style="font-size:13px;color:#bbb;padding:8px 0">No rooms yet.</div>';
     } else {
@@ -1565,15 +1564,24 @@ async function openWriterProfile(wr) {
 
 window.closeWriterProfile = function() {
   document.getElementById('writer-profile').classList.remove('visible');
-  if(currentChatId) {
-    // Restore the open chat view
+
+  if(writerProfileSource === 'chat' && currentChatId) {
+    // Came from clicking the header — restore the chat
     document.getElementById('chat-header').classList.add('visible');
     document.getElementById('messages-wrap').classList.add('visible');
     document.getElementById('compose').style.display = 'flex';
   } else {
+    // Came from Writers tab — go back to list
     document.getElementById('empty-state').style.display = '';
+    document.getElementById('compose').style.display     = 'none';
+    // On mobile: slide back to sidebar
+    goBackToList();
+    // Highlight Writers tab
+    document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+    const writersTab = [...document.querySelectorAll('.sb-tab')]
+      .find(t => t.textContent.trim() === 'Writers');
+    if(writersTab) writersTab.classList.add('active');
   }
-  if(isMobile() && !currentChatId) goBackToList();
 }
 
 // ── ROOM BROWSER ──
@@ -1689,12 +1697,11 @@ window.onHeaderClick = async function() {
     document.getElementById('chat-header').classList.remove('visible');
     document.getElementById('messages-wrap').classList.remove('visible');
     document.getElementById('compose').style.display = 'none';
-    await openWriterProfile(wr);
+    await openWriterProfile(wr, 'chat');
   } catch(e) {
     toast('Could not load profile.');
   }
 }
-// Writer copies their own profile invite link
 window.showWriterProfileLink = function() {
   const link = `${location.origin}/chat.html?writer=${currentUser.uid}`;
   navigator.clipboard.writeText(link).then(() => {
@@ -1759,7 +1766,7 @@ async function joinWriterDM(writerId) {
     const wr = writerSnap.data();
     // Show profile page first — reader can then choose to chat or join a room
     switchTab('writers', document.querySelector('.sb-tab:last-child'));
-    await openWriterProfile(wr);
+    await openWriterProfile(wr, 'list');
   } catch(e) {
     toast('Could not load writer profile. Try again.');
   }
