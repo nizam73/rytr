@@ -410,13 +410,16 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 }
 .room-join-btn:hover{background:var(--blue);color:#fff}
 
-/* Writer profile panel — sits inside #main */
+/* Writer profile panel — sits inside #main, covers it fully */
 #writer-profile{
-  display:none;flex-direction:column;
-  width:100%;height:100%;overflow:hidden;
-  position:absolute;inset:0;background:var(--bg);z-index:5
+  display:none;
+  flex-direction:column;
+  position:absolute;inset:0;
+  background:var(--bg);
+  z-index:5;
+  overflow:hidden
 }
-#writer-profile.visible{display:flex}
+#writer-profile.visible{display:flex !important}
 
 /* Writer profile room card */
 .wp-room-card{
@@ -664,7 +667,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
     </div>
 
     <!-- Writer Profile Panel (shown instead of chat when clicking a writer) -->
-    <div id="writer-profile" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div id="writer-profile">
       <div id="wp-header" style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0">
         <button id="wp-back-btn" onclick="closeWriterProfile()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;border-radius:50%">&#8592;</button>
         <div id="wp-avi" style="width:42px;height:42px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0"></div>
