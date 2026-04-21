@@ -794,7 +794,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 <div class="overlay" id="room-overlay">
   <div class="modal">
     <h3>Create Room</h3>
-    <p>Create a group room where readers can join and pay to read your locked messages.</p>
+    <p>First 10 rooms are free. Additional rooms cost <strong>50 Points</strong> each.</p>
     <div class="field" style="margin-bottom:16px">
       <label style="font-size:13px;color:#666;display:block;margin-bottom:7px;font-weight:500">Room Name</label>
       <input type="text" id="room-name-input" placeholder="e.g. Story Club"
@@ -1139,7 +1139,10 @@ async function appendMessage(docSnap, colPath) {
   row.id = 'msg-' + msgId;
   wrap.appendChild(row);   // position reserved in correct order right now
 
-  const time = data.createdAt?.toDate ? formatTime(data.createdAt.toDate()) : '';
+  // Use local time immediately for display — serverTimestamp takes a round trip
+  const time = data.createdAt?.toDate
+    ? formatTime(data.createdAt.toDate())
+    : formatTime(new Date());
 
   if(!data.locked) {
     // Free message — no async work needed
@@ -1665,20 +1668,70 @@ window.startDM = async function(writerId, writerName) {
 window.createRoom = async function() {
   const name = document.getElementById('room-name-input').value.trim();
   if(!name) { toast('Enter a room name'); return; }
+
+  const btn = document.querySelector('#room-overlay .modal-confirm');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+
   try {
+    // Count existing rooms by this writer (client-side, no index needed)
+    const allRooms  = await getDocs(collection(db, 'rooms'));
+    const myRooms   = [];
+    allRooms.forEach(d => { if(d.data().createdBy === currentUser.uid) myRooms.push(d); });
+    const roomCount = myRooms.length;
+    const FREE_LIMIT = 10;
+    const EXTRA_COST = 50;
+
+    if(roomCount >= FREE_LIMIT) {
+      // Check writer has enough points
+      const bal = currentUserData.balance || 0;
+      if(bal < EXTRA_COST) {
+        toast(`You need ${EXTRA_COST} Points to create more than ${FREE_LIMIT} rooms. Your balance: ${bal} pts.`);
+        btn.disabled = false; btn.textContent = 'Create Room';
+        return;
+      }
+      // Confirm with user
+      const confirmed = confirm(
+        `You have ${roomCount} rooms (free limit is ${FREE_LIMIT}).\n` +
+        `Creating another room costs ${EXTRA_COST} Points.\n` +
+        `Your balance: ${bal} Points.\n\nProceed?`
+      );
+      if(!confirmed) { btn.disabled = false; btn.textContent = 'Create Room'; return; }
+
+      // Deduct points atomically
+      await runTransaction(db, async tx => {
+        const userRef  = doc(db, 'users', currentUser.uid);
+        const userSnap = await tx.get(userRef);
+        const curBal   = userSnap.data().balance || 0;
+        if(curBal < EXTRA_COST) throw new Error('insufficient');
+        tx.update(userRef, { balance: curBal - EXTRA_COST });
+      });
+    }
+
+    // Create the room
     const ref = await addDoc(collection(db,'rooms'), {
       name,
-      createdBy:   currentUser.uid,
-      creatorName: currentUserData.displayName||'Writer',
-      lastMessage: '',
+      createdBy:     currentUser.uid,
+      creatorName:   currentUserData.displayName || 'Writer',
+      lastMessage:   '',
       lastMessageAt: serverTimestamp(),
-      createdAt:   serverTimestamp()
+      createdAt:     serverTimestamp()
     });
+
+    document.getElementById('room-name-input').value = '';
     closeOverlay('room-overlay');
     toast('✅ Room created!');
-    openChat(ref.id, 'room', { name, sub:`by ${currentUserData.displayName}` });
+    openChat(ref.id, 'room', { name, sub: `by ${currentUserData.displayName}` });
+
   } catch(e) {
-    toast('Could not create room. Try again.');
+    if(e.message === 'insufficient') {
+      toast(`Not enough Points to create a room.`);
+    } else {
+      toast(`Error: ${e.message}`);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Create Room';
   }
 };
 
