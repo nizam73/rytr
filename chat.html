@@ -1051,12 +1051,12 @@ function renderChatItem(docSnap, type) {
 async function openChat(chatId, type, meta) {
   // Unsubscribe ALL active listeners (messages + unlockCount)
   Object.entries(msgListeners).forEach(([k, v]) => {
-    if(Array.isArray(v)) v.forEach(fn => fn());   // unlockCount listeners
-    else v();                                       // message listener
+    if(Array.isArray(v)) v.forEach(fn => fn());
+    else v();
   });
   Object.keys(msgListeners).forEach(k => delete msgListeners[k]);
 
-  // ── Clear the messages pane immediately ──
+  // Clear messages pane
   const wrap = document.getElementById('messages-wrap');
   wrap.innerHTML = '';
   unlockDataMap.clear();
@@ -1065,32 +1065,10 @@ async function openChat(chatId, type, meta) {
   currentChatType = type;
   currentChatMeta = meta;
 
-  // Mark all items inactive
-  document.querySelectorAll('.chat-item').forEach(i=>i.classList.remove('active'));
-  const ci = document.getElementById('ci-'+chatId);
-  if(ci) ci.classList.add('active');
+  // Use new state machine to show chat panel
+  revealChat(chatId, type, meta);
 
-  // Show header + messages + compose
-  document.getElementById('empty-state').style.display  = 'none';
-  document.getElementById('chat-header').classList.add('visible');
-  wrap.classList.add('visible');
-  document.getElementById('compose').style.display      = 'flex'; // always show for all roles
-
-  document.getElementById('header-name').textContent = meta.name;
-  document.getElementById('header-sub').textContent  = meta.sub || (type==='room'?'Group Room':'Direct Message');
-  document.getElementById('header-initial').textContent = (meta.name[0]||'?').toUpperCase();
-  updateInviteBtn(chatId, type);
-
-  // Clear unread badge for this chat
-  updateBadge(chatId, 0);
-
-  // Slide to chat panel on mobile
-  showChatPanel();
-
-  // Push a history entry so browser back returns to list
-  if(isMobile()) history.pushState({ chat: chatId }, '');
-
-  // Show empty chat placeholder — hidden once first message arrives
+  // Show empty placeholder
   const placeholder = document.createElement('div');
   placeholder.id = 'chat-placeholder';
   placeholder.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#bbb;gap:10px;pointer-events:none;user-select:none';
@@ -1507,12 +1485,9 @@ let writerProfileSource = 'list';
 async function openWriterProfile(wr, source='list') {
   writerProfileSource = source;
 
-  document.getElementById('empty-state').style.display    = 'none';
-  document.getElementById('chat-header').classList.remove('visible');
-  document.getElementById('messages-wrap').classList.remove('visible');
-  document.getElementById('compose').style.display        = 'none';
-  document.getElementById('writer-profile').classList.add('visible');
-  showChatPanel();
+  setMainState('profile');
+  showMain();
+  pushNav({ type:'profile', writerData: wr });
 
   document.getElementById('wp-avi').textContent   = (wr.displayName||'W')[0].toUpperCase();
   document.getElementById('wp-name').textContent  = wr.displayName || 'Writer';
@@ -1674,7 +1649,10 @@ window.createRoom = async function() {
   btn.textContent = 'Checking...';
 
   try {
-    // Count existing rooms by this writer (client-side, no index needed)
+    // Force token refresh so email_verified is current in Firestore rules
+    await currentUser.getIdToken(true);
+
+    // Count existing rooms by this writer
     const allRooms  = await getDocs(collection(db, 'rooms'));
     const myRooms   = [];
     allRooms.forEach(d => { if(d.data().createdBy === currentUser.uid) myRooms.push(d); });
@@ -1683,22 +1661,17 @@ window.createRoom = async function() {
     const EXTRA_COST = 50;
 
     if(roomCount >= FREE_LIMIT) {
-      // Check writer has enough points
       const bal = currentUserData.balance || 0;
       if(bal < EXTRA_COST) {
-        toast(`You need ${EXTRA_COST} Points to create more than ${FREE_LIMIT} rooms. Your balance: ${bal} pts.`);
-        btn.disabled = false; btn.textContent = 'Create Room';
-        return;
+        toast(`You need ${EXTRA_COST} Points to create more than ${FREE_LIMIT} rooms. Balance: ${bal} pts.`);
+        btn.disabled = false; btn.textContent = 'Create Room'; return;
       }
-      // Confirm with user
       const confirmed = confirm(
-        `You have ${roomCount} rooms (free limit is ${FREE_LIMIT}).\n` +
-        `Creating another room costs ${EXTRA_COST} Points.\n` +
-        `Your balance: ${bal} Points.\n\nProceed?`
+        `You have ${roomCount} rooms (free limit: ${FREE_LIMIT}).\n` +
+        `Creating another costs ${EXTRA_COST} Points.\nBalance: ${bal} pts.\n\nProceed?`
       );
       if(!confirmed) { btn.disabled = false; btn.textContent = 'Create Room'; return; }
 
-      // Deduct points atomically
       await runTransaction(db, async tx => {
         const userRef  = doc(db, 'users', currentUser.uid);
         const userSnap = await tx.get(userRef);
@@ -1708,7 +1681,6 @@ window.createRoom = async function() {
       });
     }
 
-    // Create the room
     const ref = await addDoc(collection(db,'rooms'), {
       name,
       createdBy:     currentUser.uid,
@@ -1724,11 +1696,8 @@ window.createRoom = async function() {
     openChat(ref.id, 'room', { name, sub: `by ${currentUserData.displayName}` });
 
   } catch(e) {
-    if(e.message === 'insufficient') {
-      toast(`Not enough Points to create a room.`);
-    } else {
-      toast(`Error: ${e.message}`);
-    }
+    if(e.message === 'insufficient') toast('Not enough Points to create a room.');
+    else toast(`Failed: ${e.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Create Room';
@@ -1745,11 +1714,7 @@ window.onHeaderClick = async function() {
     const snap = await getDoc(doc(db, 'users', otherUid));
     if(!snap.exists()) { toast('Could not load profile.'); return; }
     const wr = snap.data();
-    if(wr.role !== 'writer') return; // only show profile for writers
-    // Hide current chat, show profile
-    document.getElementById('chat-header').classList.remove('visible');
-    document.getElementById('messages-wrap').classList.remove('visible');
-    document.getElementById('compose').style.display = 'none';
+    if(wr.role !== 'writer') return;
     await openWriterProfile(wr, 'chat');
   } catch(e) {
     toast('Could not load profile.');
@@ -1917,28 +1882,195 @@ window.doLogout = async function() {
 // ── HELPERS ──
 window.closeOverlay = function(id) { document.getElementById(id).classList.remove('show') }
 
-// ── MOBILE PANEL NAVIGATION ──
+// ── NAVIGATION STATE MACHINE ──
+// States: 'empty' | 'chat' | 'profile'
+// On mobile: sidebar and main slide. History stack drives back button.
+
 function isMobile() { return window.innerWidth <= 768; }
 
-function showChatPanel() {
+// Navigation history stack for mobile back button
+// Each entry: { type: 'sidebar'|'chat'|'profile', tab?, chatId?, chatType?, chatMeta?, writerData? }
+const navStack = [];
+
+function pushNav(state) {
+  navStack.push(state);
+  if(isMobile()) history.pushState({ depth: navStack.length }, '');
+}
+
+// Show sidebar (slide main out on mobile)
+function showSidebar() {
+  document.getElementById('sidebar').classList.remove('slide-out');
+  document.getElementById('main').classList.remove('slide-in');
+}
+
+// Show main panel (slide sidebar out on mobile)
+function showMain() {
   if(!isMobile()) return;
   document.getElementById('sidebar').classList.add('slide-out');
   document.getElementById('main').classList.add('slide-in');
 }
 
-window.goBackToList = function() {
-  if(!isMobile()) return;
-  document.getElementById('sidebar').classList.remove('slide-out');
-  document.getElementById('main').classList.remove('slide-in');
+// Central function: set main panel state
+function setMainState(state) {
+  const emptyEl   = document.getElementById('empty-state');
+  const headerEl  = document.getElementById('chat-header');
+  const msgsEl    = document.getElementById('messages-wrap');
+  const composeEl = document.getElementById('compose');
+  const profileEl = document.getElementById('writer-profile');
+
+  // Hide everything first
+  emptyEl.style.display   = 'none';
+  headerEl.classList.remove('visible');
+  msgsEl.classList.remove('visible');
+  composeEl.style.display = 'none';
+  profileEl.classList.remove('visible');
+
+  if(state === 'empty') {
+    emptyEl.style.display = '';
+  } else if(state === 'chat') {
+    headerEl.classList.add('visible');
+    msgsEl.classList.add('visible');
+    composeEl.style.display = 'flex';
+  } else if(state === 'profile') {
+    profileEl.classList.add('visible');
+  }
 }
 
-// Handle browser back gesture on mobile
-window.addEventListener('popstate', () => {
-  if(isMobile() && document.getElementById('main').classList.contains('slide-in')) {
-    goBackToList();
+// ── TAB SWITCH ──
+window.switchTab = function(tab, el) {
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('chats-panel').style.display   = tab==='chats'   ? 'flex' : 'none';
+  document.getElementById('writers-panel').style.display = tab==='writers' ? 'flex' : 'none';
+  document.getElementById('rooms-panel').style.display   = tab==='rooms'   ? 'flex' : 'none';
+
+  // On mobile: switching tabs always returns to sidebar
+  if(isMobile()) {
+    showSidebar();
+    navStack.length = 0; // clear nav stack
+  }
+
+  // Reset main panel
+  currentChatId = null;
+  setMainState('empty');
+
+  if(tab==='writers') loadWriters();
+  if(tab==='rooms')   loadRoomsBrowse();
+}
+
+// ── OPEN CHAT (updated) ──
+function revealChat(chatId, type, meta) {
+  // Mark sidebar item active
+  document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('ci-'+chatId)?.classList.add('active');
+
+  // Update header
+  const headerAvi = document.getElementById('header-avatar');
+  headerAvi.style.position = 'relative';
+  headerAvi.innerHTML = `<span id="header-initial">${(meta.name[0]||'?').toUpperCase()}</span>`;
+
+  document.getElementById('header-name').textContent = meta.name;
+  document.getElementById('header-sub').textContent  = meta.sub || (type==='room'?'Group Room':'Direct Message');
+  updateInviteBtn(chatId, type);
+  updateBadge(chatId, 0);
+
+  setMainState('chat');
+  showMain();
+  pushNav({ type:'chat', chatId, chatType:type, chatMeta:meta });
+}
+
+// ── WRITER PROFILE OPEN/CLOSE ──
+window.closeWriterProfile = function() {
+  const prev = navStack[navStack.length - 1];
+  navStack.pop();
+  const curr = navStack[navStack.length - 1];
+
+  if(curr && curr.type === 'chat') {
+    setMainState('chat');
+    // Don't slide back — already in main panel
+  } else {
+    // Go back to sidebar
+    setMainState('empty');
+    if(isMobile()) showSidebar();
+    // Re-activate Writers tab
+    document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+    const writersTab = [...document.querySelectorAll('.sb-tab')].find(t => t.textContent.trim() === 'Writers');
+    if(writersTab) writersTab.classList.add('active');
+    document.getElementById('chats-panel').style.display   = 'none';
+    document.getElementById('writers-panel').style.display = 'flex';
+    document.getElementById('rooms-panel').style.display   = 'none';
+    loadWriters();
+  }
+}
+
+// ── BACK BUTTON (in-app header back) ──
+window.goBackToList = function() {
+  if(navStack.length === 0) { showSidebar(); return; }
+  const curr = navStack[navStack.length - 1];
+  navStack.pop();
+
+  if(curr.type === 'profile') {
+    closeWriterProfile(); return;
+  }
+  // Going back from chat → sidebar
+  currentChatId = null;
+  setMainState('empty');
+  showSidebar();
+}
+
+// Phone back button / browser back
+window.addEventListener('popstate', (e) => {
+  if(!isMobile()) return;
+
+  if(navStack.length > 0) {
+    const curr = navStack[navStack.length - 1];
+    navStack.pop();
+
+    if(curr.type === 'profile') {
+      // Close profile without re-popping state
+      const profileEl = document.getElementById('writer-profile');
+      profileEl.classList.remove('visible');
+      const prev = navStack[navStack.length - 1];
+      if(prev && prev.type === 'chat') {
+        setMainState('chat');
+      } else {
+        setMainState('empty');
+        showSidebar();
+        // Re-activate writers tab
+        document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+        const writersTab = [...document.querySelectorAll('.sb-tab')].find(t => t.textContent.trim() === 'Writers');
+        if(writersTab) writersTab.classList.add('active');
+        document.getElementById('writers-panel').style.display = 'flex';
+        document.getElementById('chats-panel').style.display   = 'none';
+        document.getElementById('rooms-panel').style.display   = 'none';
+        loadWriters();
+      }
+    } else if(curr.type === 'chat') {
+      currentChatId = null;
+      setMainState('empty');
+      showSidebar();
+    }
+  } else {
+    // Stack empty: go to sidebar (Chats tab = home)
+    showSidebar();
+    setMainState('empty');
+    currentChatId = null;
+    document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+    const chatsTab = document.querySelector('.sb-tab');
+    if(chatsTab) chatsTab.classList.add('active');
+    document.getElementById('chats-panel').style.display   = 'flex';
+    document.getElementById('writers-panel').style.display = 'none';
+    document.getElementById('rooms-panel').style.display   = 'none';
   }
 });
-window.toggleSbMenu = function(e) {
+
+// Clean up mobile slide classes if window resized to desktop
+window.addEventListener('resize', () => {
+  if(!isMobile()) {
+    document.getElementById('sidebar').classList.remove('slide-out');
+    document.getElementById('main').classList.remove('slide-in');
+  }
+});
   e.stopPropagation();
   e.preventDefault();
   document.getElementById('sb-menu').classList.toggle('show');
