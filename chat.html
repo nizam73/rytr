@@ -2064,24 +2064,22 @@ window.addEventListener('popstate', (e) => {
   }
 });
 
-
-
-// Handle resize (desktop reset)
+// Clean up mobile slide classes if window resized to desktop
 window.addEventListener('resize', () => {
-  if (!isMobile()) {
+  if(!isMobile()) {
     document.getElementById('sidebar').classList.remove('slide-out');
     document.getElementById('main').classList.remove('slide-in');
   }
 });
 
-// Sidebar menu toggle (FIXED)
-function toggleSbMenu(e) {
+window.toggleSbMenu = function(e) {
   e.stopPropagation();
   e.preventDefault();
   document.getElementById('sb-menu').classList.toggle('show');
 }
-
-
+function closeSbMenu() {
+  document.getElementById('sb-menu').classList.remove('show');
+}
 
 // Close sidebar menu on outside click
 document.addEventListener('click', (e) => {
