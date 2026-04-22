@@ -80,7 +80,7 @@
       <p>Select a chat or find a writer to start</p>
     </div>
 
-    <!-- Writer Profile Panel (shown instead of chat when clicking a writer) -->
+    <!-- Writer Profile Panel -->
     <div id="writer-profile">
       <div id="wp-header" style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0">
         <button id="wp-back-btn" onclick="closeWriterProfile()">&#8592;</button>
@@ -92,25 +92,74 @@
         <button id="wp-chat-btn" style="margin-left:auto;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;font-family:Roboto,sans-serif;cursor:pointer">Chat Now</button>
       </div>
       <div style="flex:1;overflow-y:auto;padding:20px">
-        <!-- Bio -->
         <div id="wp-bio-box" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">About</div>
           <div id="wp-bio" style="font-size:14px;color:var(--text);line-height:1.7"></div>
         </div>
-        <!-- Stats -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">
             <div id="wp-unlocks" style="font-size:24px;font-weight:700;color:var(--blue)">—</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:3px">Total Unlocks</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">Points Earned</div>
           </div>
           <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">
             <div id="wp-rooms-count" style="font-size:24px;font-weight:700;color:var(--blue)">—</div>
             <div style="font-size:11px;color:var(--muted);margin-top:3px">Rooms</div>
           </div>
         </div>
-        <!-- Rooms list -->
         <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Rooms</div>
         <div id="wp-rooms-list"></div>
+      </div>
+    </div>
+
+    <!-- Room Profile Panel -->
+    <div id="room-profile">
+      <!-- Header -->
+      <div class="rp-header">
+        <button id="rp-back-btn" onclick="closeRoomProfile()">&#8592;</button>
+        <div class="rp-avi" id="rp-avi"></div>
+        <div style="flex:1;min-width:0">
+          <div class="rp-name" id="rp-name"></div>
+          <div class="rp-sub"  id="rp-sub"></div>
+        </div>
+        <!-- Join / Enter button — shown to all users -->
+        <button id="rp-join-btn" class="rp-join-btn" onclick="enterRoomFromProfile()">Enter Room</button>
+        <!-- Delete button — shown only to room creator -->
+        <button id="rp-delete-btn" class="rp-delete-btn" style="display:none" onclick="deleteRoom()">🗑</button>
+      </div>
+
+      <!-- Info cards -->
+      <div class="rp-info-grid">
+        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-created">—</div><div class="rp-stat-lbl">Created</div></div>
+        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-earned">—</div><div class="rp-stat-lbl">Pts Earned</div></div>
+        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-member-count">—</div><div class="rp-stat-lbl">Members</div></div>
+        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-seats">—</div><div class="rp-stat-lbl">Seats</div></div>
+      </div>
+
+      <!-- Bio -->
+      <div style="padding:0 16px 12px">
+        <div class="rp-section-label">About</div>
+        <div class="rp-bio-box"><div id="rp-bio"></div></div>
+      </div>
+
+      <!-- Tabs: Thread | Members -->
+      <div class="rp-tabs">
+        <div class="rp-tab active" id="rpt-thread"  onclick="switchRpTab('thread',this)">Thread</div>
+        <div class="rp-tab"        id="rpt-members" onclick="switchRpTab('members',this)">Members</div>
+      </div>
+
+      <!-- Thread tab -->
+      <div id="rp-thread-panel" class="rp-panel">
+        <div id="rp-thread-list"></div>
+      </div>
+
+      <!-- Members tab -->
+      <div id="rp-members-panel" class="rp-panel" style="display:none">
+        <div class="rp-members-header">
+          <span id="rp-members-count-label">Members: —</span>
+          <!-- Add seats button — writer only -->
+          <button id="rp-add-seats-btn" style="display:none" onclick="addSeats()" title="Add seats">＋ Seats</button>
+        </div>
+        <div id="rp-members-list"></div>
       </div>
     </div>
 
