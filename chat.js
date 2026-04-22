@@ -1,3 +1,4 @@
+//Antigravity edit.
 // chat.js — Firebase logic
 // Handles: auth, messages, rooms, unlock transactions, writer profiles
 
@@ -692,6 +693,7 @@ async function loadRpThread(roomId) {
     snap.forEach(d => docs.push(d));
     docs.sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
     for(const d of docs) {
+      const msg = d.data();
       totalEarned += (msg.unlockCount||0) * (msg.price||0);
       const unlockRef  = doc(db, `unlocks/${S.currentUser.uid}_${d.id}`);
       const unlocked   = (await getDoc(unlockRef)).exists();
