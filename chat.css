@@ -1,4 +1,5 @@
 /* chat.css — All styles for the Rytr chat interface */
+/* antigravity edit */
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -617,7 +618,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   padding:12px 14px;font-size:13px;line-height:1.6;color:var(--text)
 }
 .rp-thread-revealed-badge{
-  font-size:10px;color:var(--blue);margin-top:6px;font-weight:500
+  font-size:10px;color:var(--blue);padding:0 14px 12px 14px;margin-top:-4px;font-weight:500
 }
 .rp-thread-stats{
   display:flex;gap:12px;padding:8px 14px;
@@ -671,6 +672,12 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 }
 @media(min-width:769px){
   #rp-back-btn{display:none}
+  #room-profile {
+    align-items: center;
+  }
+  #room-profile > * {
+    width: 66.66%;
+  }
 }
 @media(max-width:768px){
   #app{position:relative;overflow:hidden}
