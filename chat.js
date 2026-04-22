@@ -524,16 +524,15 @@ export async function loadRoomsBrowse() {
     docs.forEach(d => {
       const room = d.data();
       const item = document.createElement('div'); item.className='room-browse-item';
+      item.style.cursor = 'pointer';
       item.innerHTML = `
         <div class="room-browse-avi">${(room.name||'R')[0].toUpperCase()}</div>
         <div class="room-browse-info">
           <div class="room-browse-name">${esc(room.name||'Room')}</div>
           <div class="room-browse-by">by ${esc(room.creatorName||'Writer')}</div>
         </div>
-        <button class="room-join-btn">Join</button>`;
-      const join = () => { window.switchTab('chats',document.querySelector('.sb-tab')); openChat(d.id,'room',{name:room.name,sub:`by ${room.creatorName||'Writer'}`}); };
-      item.querySelector('.room-join-btn').onclick = e => { e.stopPropagation(); join(); };
-      item.onclick = join;
+        <span class="room-browse-arrow">›</span>`;
+      item.onclick = () => openRoomProfile(d.id, room);
       list.appendChild(item);
     });
   } catch(e) { list.innerHTML=`<div style="padding:16px;color:red;font-size:12px">Error: ${e.message}</div>`; }
@@ -592,8 +591,251 @@ window.createRoom = async function() {
   } finally { btn.disabled=false; btn.textContent='Create Room'; }
 };
 
-// ── HEADER CLICK → WRITER PROFILE ──
+// ── ROOM PROFILE ──
+let currentRoomProfileId   = null;
+let currentRoomProfileData = null;
+
+export async function openRoomProfile(roomId, roomData) {
+  currentRoomProfileId   = roomId;
+  currentRoomProfileData = roomData;
+  const { setMainState, showMain, pushNav } = await import('./ui.js');
+  setMainState('room-profile');
+  showMain();
+  pushNav({ type:'room-profile', roomId, roomData });
+
+  // Header
+  document.getElementById('rp-avi').textContent  = (roomData.name||'R')[0].toUpperCase();
+  document.getElementById('rp-name').textContent = roomData.name || 'Room';
+  document.getElementById('rp-sub').textContent  = `by ${roomData.creatorName||'Writer'}`;
+
+  // Show delete btn only for creator
+  const isOwner = roomData.createdBy === S.currentUser.uid;
+  document.getElementById('rp-delete-btn').style.display = isOwner ? '' : 'none';
+  document.getElementById('rp-add-seats-btn').style.display = isOwner ? '' : 'none';
+
+  // Created date
+  const created = roomData.createdAt?.toDate ? roomData.createdAt.toDate().toLocaleDateString() : '—';
+  document.getElementById('rp-created').textContent = created;
+
+  // Bio
+  document.getElementById('rp-bio').textContent = roomData.bio || 'No description yet.';
+
+  // Stats — earned points in room (sum unlockCount * price of locked msgs)
+  document.getElementById('rp-earned').textContent   = '...';
+  document.getElementById('rp-member-count').textContent = '...';
+  document.getElementById('rp-seats').textContent    = roomData.seats || 1000;
+
+  // Reset to Thread tab
+  document.getElementById('rpt-thread').classList.add('active');
+  document.getElementById('rpt-members').classList.remove('active');
+  document.getElementById('rp-thread-panel').style.display  = '';
+  document.getElementById('rp-members-panel').style.display = 'none';
+
+  // Load thread and member count
+  loadRpThread(roomId);
+  loadRpMembers(roomId, isOwner);
+}
+
+window.closeRoomProfile = async function() {
+  const { navStack, setMainState, showSidebar, isMobile } = await import('./ui.js');
+  navStack.pop();
+  const prev = navStack[navStack.length - 1];
+  if(prev && prev.type === 'chat') {
+    setMainState('chat');
+  } else {
+    setMainState('empty');
+    if(isMobile()) showSidebar();
+    // Re-activate Rooms tab
+    document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+    const roomsTab = [...document.querySelectorAll('.sb-tab')].find(t => t.textContent.trim() === 'Rooms');
+    if(roomsTab) roomsTab.classList.add('active');
+    document.getElementById('chats-panel').style.display   = 'none';
+    document.getElementById('writers-panel').style.display = 'none';
+    document.getElementById('rooms-panel').style.display   = 'flex';
+    loadRoomsBrowse();
+  }
+};
+
+window.enterRoomFromProfile = function() {
+  if(!currentRoomProfileId || !currentRoomProfileData) return;
+  window.closeRoomProfile();
+  openChat(currentRoomProfileId, 'room', {
+    name: currentRoomProfileData.name,
+    sub:  `by ${currentRoomProfileData.creatorName||'Writer'}`
+  });
+};
+
+window.switchRpTab = function(tab, el) {
+  document.querySelectorAll('.rp-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('rp-thread-panel').style.display  = tab==='thread'  ? '' : 'none';
+  document.getElementById('rp-members-panel').style.display = tab==='members' ? '' : 'none';
+};
+
+async function loadRpThread(roomId) {
+  const list = document.getElementById('rp-thread-list');
+  list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading...</div>';
+  try {
+    const snap = await getDocs(query(
+      collection(db, `rooms/${roomId}/messages`),
+      where('locked','==',true),
+      orderBy('createdAt','desc')
+    ));
+    list.innerHTML = '';
+    let totalEarned = 0;
+    if(snap.empty) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">No locked messages yet.</div>';
+      document.getElementById('rp-earned').textContent = 0;
+      return;
+    }
+    for(const d of snap.docs) {
+      const msg = d.data();
+      totalEarned += (msg.unlockCount||0) * (msg.price||0);
+      const unlockRef  = doc(db, `unlocks/${S.currentUser.uid}_${d.id}`);
+      const unlocked   = (await getDoc(unlockRef)).exists();
+      const isOwn      = msg.senderId === S.currentUser.uid;
+      const item = document.createElement('div');
+      item.className = 'rp-thread-item';
+
+      let contentHtml = '';
+      if(isOwn || unlocked) {
+        contentHtml = `<div class="rp-thread-revealed">${esc(msg.text)}</div>`;
+        if(unlocked && !isOwn) contentHtml += `<div class="rp-thread-revealed-badge">✓ Unlocked · ${msg.price} pts spent</div>`;
+      } else {
+        contentHtml = `
+          <div class="rp-thread-blur">${esc(msg.text)}</div>
+          <div class="rp-thread-unlock" onclick="window.openUnlock('${d.id}')">
+            <span class="rp-thread-unlock-text">Unlock &amp; Read</span>
+            <span class="rp-thread-unlock-pts">${msg.price} Points</span>
+          </div>`;
+        S.unlockDataMap.set(d.id, {
+          colPath:    `rooms/${roomId}/messages`,
+          senderName: msg.senderName||'',
+          price:      msg.price,
+          senderId:   msg.senderId
+        });
+      }
+      const time = msg.createdAt?.toDate ? msg.createdAt.toDate().toLocaleString() : '';
+      item.innerHTML = `
+        <div class="rp-thread-header">
+          <span class="rp-thread-sender">${esc(msg.senderName||'Writer')}</span>
+          <span class="rp-thread-price">🪙 ${msg.price} pts · ${time}</span>
+        </div>
+        ${contentHtml}
+        ${isOwn ? `<div class="rp-thread-stats">
+          <span class="rp-thread-stat">Unlocked by <b>${msg.unlockCount||0}</b></span>
+          <span class="rp-thread-stat">Earned <b>🪙 ${(msg.unlockCount||0)*(msg.price||0)}</b></span>
+        </div>` : ''}`;
+      list.appendChild(item);
+    }
+    document.getElementById('rp-earned').textContent = totalEarned;
+  } catch(e) {
+    list.innerHTML = `<div style="padding:16px;color:red;font-size:12px">Error: ${e.message}</div>`;
+  }
+}
+
+async function loadRpMembers(roomId, isOwner) {
+  const list = document.getElementById('rp-members-list');
+  list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading members...</div>';
+  try {
+    // Members = users who have sent at least one message in this room
+    const msgsSnap = await getDocs(collection(db, `rooms/${roomId}/messages`));
+    const memberMap = {};
+    msgsSnap.forEach(d => {
+      const m = d.data();
+      if(!memberMap[m.senderId]) memberMap[m.senderId] = { name: m.senderName||'User', spent: 0 };
+    });
+    // Calculate points spent per member
+    const unlocksSnap = await getDocs(collection(db,'unlocks'));
+    unlocksSnap.forEach(d => {
+      const u = d.data();
+      if(memberMap[u.userId]) memberMap[u.userId].spent = (memberMap[u.userId].spent||0) + (u.price||0);
+    });
+
+    const seats = currentRoomProfileData?.seats || 1000;
+    const memberCount = Object.keys(memberMap).length;
+    document.getElementById('rp-member-count').textContent = memberCount;
+    document.getElementById('rp-members-count-label').textContent = `Members: ${memberCount} / ${seats}`;
+
+    list.innerHTML = '';
+    if(memberCount === 0) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">No members yet.</div>';
+      return;
+    }
+    Object.entries(memberMap).forEach(([uid, info]) => {
+      const item = document.createElement('div');
+      item.className = 'rp-member-item';
+      item.innerHTML = `
+        <div class="rp-member-avi">${(info.name[0]||'U').toUpperCase()}</div>
+        <div class="rp-member-info">
+          <div class="rp-member-name">${esc(info.name)}</div>
+          <div class="rp-member-pts">Spent ${info.spent} pts in this room</div>
+        </div>
+        ${isOwner && uid !== S.currentUser.uid
+          ? `<button class="rp-remove-btn" onclick="removeMember('${roomId}','${uid}')">Remove</button>`
+          : ''}`;
+      list.appendChild(item);
+    });
+  } catch(e) {
+    list.innerHTML = `<div style="padding:16px;color:red;font-size:12px">Error: ${e.message}</div>`;
+  }
+}
+
+window.removeMember = async function(roomId, uid) {
+  if(!confirm('Remove this member from the room?')) return;
+  try {
+    // Mark removed in a subcollection — full ban logic can expand later
+    await setDoc(doc(db,`rooms/${roomId}/banned/${uid}`), { removedAt: serverTimestamp() });
+    toast('Member removed.');
+    loadRpMembers(roomId, true);
+  } catch(e) { toast('Could not remove member: '+e.message); }
+};
+
+window.deleteRoom = async function() {
+  if(!currentRoomProfileId) return;
+  if(!confirm(`Delete room "${currentRoomProfileData?.name}"? This cannot be undone.`)) return;
+  try {
+    await updateDoc(doc(db,'rooms',currentRoomProfileId), { deleted: true, name: '[Deleted Room]' });
+    toast('Room deleted.');
+    window.closeRoomProfile();
+  } catch(e) { toast('Could not delete room: '+e.message); }
+};
+
+window.addSeats = async function() {
+  if(!currentRoomProfileId) return;
+  const curSeats = currentRoomProfileData?.seats || 1000;
+  const cost = 50;
+  const bal  = S.currentUserData.balance || 0;
+  if(bal < cost) { toast(`You need ${cost} Points to add 1000 seats. Balance: ${bal} pts.`); return; }
+  if(!confirm(`Add 1000 seats to this room?\nCost: ${cost} Points.\nBalance: ${bal} pts.`)) return;
+  try {
+    await runTransaction(db, async tx => {
+      const userRef  = doc(db,'users',S.currentUser.uid);
+      const userSnap = await tx.get(userRef);
+      const curBal   = userSnap.data().balance || 0;
+      if(curBal < cost) throw new Error('insufficient');
+      tx.update(userRef, { balance: curBal - cost });
+      tx.update(doc(db,'rooms',currentRoomProfileId), { seats: curSeats + 1000 });
+    });
+    currentRoomProfileData.seats = curSeats + 1000;
+    document.getElementById('rp-seats').textContent = curSeats + 1000;
+    document.getElementById('rp-members-count-label').textContent =
+      `Members: ${document.getElementById('rp-member-count').textContent} / ${curSeats + 1000}`;
+    toast('✅ 1000 seats added!');
+  } catch(e) {
+    if(e.message==='insufficient') toast('Not enough Points.');
+    else toast('Failed: '+e.message);
+  }
+};
 window.onHeaderClick = async function() {
+  if(S.currentChatType === 'room') {
+    try {
+      const snap = await getDoc(doc(db,'rooms',S.currentChatId));
+      if(!snap.exists()) { toast('Room not found.'); return; }
+      await openRoomProfile(S.currentChatId, snap.data());
+    } catch(e) { toast('Could not load room profile.'); }
+    return;
+  }
   if(S.currentChatType !== 'dm') return;
   const otherUid = S.currentChatId?.split('_').find(u => u !== S.currentUser.uid);
   if(!otherUid) return;
