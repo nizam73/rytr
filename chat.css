@@ -502,7 +502,176 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   font-family:'Roboto',sans-serif;cursor:pointer
 }
 
-/* ── RESPONSIVE ── */
+/* ── ROOM PROFILE PANEL ── */
+#room-profile{
+  display:none;flex-direction:column;
+  position:absolute;inset:0;
+  background:var(--bg);z-index:5;overflow:hidden
+}
+#room-profile.visible{display:flex !important}
+
+.rp-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;background:var(--white);
+  border-bottom:1px solid var(--border);flex-shrink:0
+}
+.rp-avi{
+  width:42px;height:42px;border-radius:10px;
+  background:var(--blue-light);color:var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:700;flex-shrink:0
+}
+.rp-name{font-size:16px;font-weight:700;color:var(--text)}
+.rp-sub{font-size:12px;color:var(--muted);margin-top:1px}
+.rp-join-btn{
+  margin-left:auto;background:var(--blue);color:#fff;border:none;
+  padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer;white-space:nowrap;flex-shrink:0
+}
+.rp-join-btn:hover{background:var(--blue-dark)}
+.rp-delete-btn{
+  background:none;border:1.5px solid #D32F2F;color:#D32F2F;
+  padding:6px 10px;border-radius:8px;font-size:14px;
+  cursor:pointer;transition:all .2s;flex-shrink:0;margin-left:6px
+}
+.rp-delete-btn:hover{background:#D32F2F;color:#fff}
+
+#rp-back-btn{
+  background:none;border:none;font-size:20px;cursor:pointer;
+  color:var(--text);padding:4px 8px;border-radius:50%;
+  transition:background .15s;flex-shrink:0
+}
+#rp-back-btn:hover{background:var(--bg)}
+
+/* Info grid */
+.rp-info-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  padding:12px 16px;flex-shrink:0
+}
+.rp-stat-card{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:10px;padding:10px;text-align:center
+}
+.rp-stat-val{font-size:18px;font-weight:700;color:var(--blue)}
+.rp-stat-lbl{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* Bio */
+.rp-section-label{
+  font-size:10px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px
+}
+.rp-bio-box{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;
+  font-size:14px;color:var(--text);line-height:1.7
+}
+
+/* Tabs */
+.rp-tabs{
+  display:flex;border-bottom:1px solid var(--border);
+  background:var(--white);flex-shrink:0
+}
+.rp-tab{
+  flex:1;text-align:center;padding:11px 0;font-size:13px;font-weight:500;
+  color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s
+}
+.rp-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* Panels */
+.rp-panel{flex:1;overflow-y:auto}
+.rp-panel::-webkit-scrollbar{width:4px}
+.rp-panel::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* Thread tab — locked bubbles */
+.rp-thread-item{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:12px;margin:10px 16px;overflow:hidden
+}
+.rp-thread-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px;border-bottom:1px solid var(--border)
+}
+.rp-thread-sender{font-size:12px;font-weight:600;color:var(--blue)}
+.rp-thread-price{
+  font-size:11px;color:var(--gold);font-weight:700;
+  background:#FFF8E1;border:1px solid #FFE082;
+  padding:2px 8px;border-radius:20px
+}
+.rp-thread-blur{
+  font-size:13px;line-height:1.6;color:var(--text);
+  filter:blur(5px);user-select:none;pointer-events:none;
+  padding:10px 14px;max-height:72px;overflow:hidden
+}
+.rp-thread-unlock{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--blue);color:#fff;padding:9px 14px;cursor:pointer
+}
+.rp-thread-unlock:hover{background:var(--blue-dark)}
+.rp-thread-unlock-text{font-size:13px;font-weight:600}
+.rp-thread-unlock-pts{
+  font-size:11px;background:rgba(255,255,255,.2);
+  padding:2px 8px;border-radius:20px
+}
+.rp-thread-revealed{
+  padding:12px 14px;font-size:13px;line-height:1.6;color:var(--text)
+}
+.rp-thread-revealed-badge{
+  font-size:10px;color:var(--blue);margin-top:6px;font-weight:500
+}
+.rp-thread-stats{
+  display:flex;gap:12px;padding:8px 14px;
+  border-top:1px solid var(--border);background:#FAFAFA
+}
+.rp-thread-stat{font-size:10px;color:var(--muted)}
+.rp-thread-stat b{color:var(--blue)}
+
+/* Members tab */
+.rp-members-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:var(--white);
+  border-bottom:1px solid var(--border);font-size:13px;
+  font-weight:600;color:var(--text);flex-shrink:0;
+  position:sticky;top:0;z-index:1
+}
+#rp-add-seats-btn{
+  background:var(--blue-light);color:var(--blue);border:none;
+  padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer
+}
+#rp-add-seats-btn:hover{background:var(--blue);color:#fff}
+.rp-member-item{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 16px;border-bottom:1px solid #F5F5F5
+}
+.rp-member-avi{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--blue);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;flex-shrink:0
+}
+.rp-member-info{flex:1;min-width:0}
+.rp-member-name{font-size:13px;font-weight:600;color:var(--text)}
+.rp-member-pts{font-size:11px;color:var(--muted);margin-top:2px}
+.rp-remove-btn{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  padding:4px 10px;border-radius:6px;font-size:11px;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:all .2s
+}
+.rp-remove-btn:hover{border-color:#D32F2F;color:#D32F2F}
+
+/* Room list item — no join button */
+.room-browse-item .room-browse-arrow{
+  font-size:13px;color:var(--blue);flex-shrink:0
+}
+
+@media(max-width:768px){
+  #rp-back-btn{display:flex}
+  .rp-info-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(min-width:769px){
+  #rp-back-btn{display:none}
+}
 @media(max-width:768px){
   #app{position:relative;overflow:hidden}
   #sidebar{
