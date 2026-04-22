@@ -519,14 +519,14 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
     transition:transform .28s cubic-bezier(.4,0,.2,1)
   }
   #main.slide-in{transform:translateX(0)}
-  #back-btn{
+  #back-btn,#wp-back-btn{
     display:flex;align-items:center;justify-content:center;
     width:36px;height:36px;border-radius:50%;
     background:none;border:none;cursor:pointer;
     font-size:20px;color:var(--text);
     transition:background .15s;flex-shrink:0
   }
-  #back-btn:hover{background:var(--bg)}
+  #back-btn:hover,#wp-back-btn:hover{background:var(--bg)}
   #chat-header{padding:10px 14px;gap:8px}
   #messages-wrap{padding:12px 14px}
   #compose{padding:8px 12px}
@@ -535,4 +535,5 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 }
 @media(min-width:769px){
   #back-btn{display:none}
+  #wp-back-btn{display:none}
 }
