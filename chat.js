@@ -678,8 +678,7 @@ async function loadRpThread(roomId) {
   try {
     const snap = await getDocs(query(
       collection(db, `rooms/${roomId}/messages`),
-      where('locked','==',true),
-      orderBy('createdAt','desc')
+      where('locked','==',true)
     ));
     list.innerHTML = '';
     let totalEarned = 0;
@@ -688,8 +687,11 @@ async function loadRpThread(roomId) {
       document.getElementById('rp-earned').textContent = 0;
       return;
     }
-    for(const d of snap.docs) {
-      const msg = d.data();
+    // Sort client-side descending by createdAt — no index needed
+    const docs = [];
+    snap.forEach(d => docs.push(d));
+    docs.sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
+    for(const d of docs) {
       totalEarned += (msg.unlockCount||0) * (msg.price||0);
       const unlockRef  = doc(db, `unlocks/${S.currentUser.uid}_${d.id}`);
       const unlocked   = (await getDoc(unlockRef)).exists();
