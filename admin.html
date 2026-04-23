@@ -139,6 +139,91 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
 .empty{padding:40px;text-align:center;color:var(--muted);font-size:14px}
 .empty .em-icon{font-size:40px;margin-bottom:10px;display:block}
 
+/* ── PLATFORM SETTINGS ── */
+.settings-section{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:12px;padding:20px 24px;margin-bottom:20px
+}
+.settings-section-title{
+  font-size:14px;font-weight:700;color:var(--text);
+  margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)
+}
+.settings-grid{display:flex;flex-direction:column;gap:0}
+.setting-row{
+  display:flex;align-items:flex-start;gap:16px;
+  padding:12px 0;border-bottom:1px solid #F5F5F5
+}
+.setting-row:last-child{border-bottom:none}
+.setting-row label{
+  font-size:13px;font-weight:500;color:var(--text);
+  min-width:160px;padding-top:8px;flex-shrink:0
+}
+.setting-input-wrap{flex:1;display:flex;flex-direction:column;gap:4px}
+.setting-input{
+  width:100%;padding:9px 12px;background:#F5F5F5;
+  border:1.5px solid transparent;border-radius:8px;
+  font-size:13px;font-family:'Roboto',sans-serif;color:var(--text);outline:none;transition:border-color .2s
+}
+.setting-input:focus{border-color:var(--blue);background:#fff}
+.setting-default{font-size:11px;color:#bbb}
+
+/* Color picker row */
+.color-wrap{display:flex;align-items:center;gap:8px}
+.color-picker{
+  width:40px;height:36px;padding:2px;border:1.5px solid var(--border);
+  border-radius:8px;cursor:pointer;background:none;outline:none
+}
+.color-picker::-webkit-color-swatch-wrapper{padding:0;border-radius:6px}
+.color-picker::-webkit-color-swatch{border:none;border-radius:6px}
+.hex-input{
+  width:96px;padding:8px 10px;background:#F5F5F5;
+  border:1.5px solid transparent;border-radius:8px;
+  font-size:13px;font-family:monospace;color:var(--text);outline:none;transition:border-color .2s
+}
+.hex-input:focus{border-color:var(--blue);background:#fff}
+
+/* Save / Reset */
+.settings-actions{
+  display:flex;gap:12px;justify-content:flex-end;margin-bottom:24px
+}
+.btn-save{
+  background:var(--blue);color:#fff;border:none;
+  padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:background .2s
+}
+.btn-save:hover{background:var(--blue-dark)}
+.btn-reset{
+  background:none;border:1.5px solid var(--border);color:var(--muted);
+  padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:all .2s
+}
+.btn-reset:hover{border-color:var(--red);color:var(--red)}
+
+/* Preview */
+.preview-box{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:12px;padding:20px 24px;margin-bottom:20px
+}
+.preview-label{
+  font-size:12px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px
+}
+.preview-chat{
+  border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px
+}
+.preview-incoming{display:flex;justify-content:flex-start}
+.preview-outgoing{display:flex;justify-content:flex-end}
+.preview-bubble-in,.preview-bubble-out{
+  max-width:60%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5
+}
+.preview-bubble-in{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.1);color:#111;border-radius:0 12px 12px 12px}
+.preview-bubble-out{background:#3949AB;color:#fff;border-radius:12px 0 12px 12px}
+.preview-lock{max-width:60%}
+.preview-lock-body{
+  background:#FFF9C4;border:1px solid #FFD54F;border-radius:10px;
+  padding:10px 14px;font-size:12px;color:#795548
+}
+
 /* Toast */
 #toast{
   position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);
@@ -175,6 +260,9 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
     </div>
     <div class="nav-item" onclick="showPanel('overview',this)">
       <span class="ni-icon">📊</span> Overview
+    </div>
+    <div class="nav-item" onclick="showPanel('settings',this)">
+      <span class="ni-icon">⚙️</span> Platform Settings
     </div>
 
     <div class="nav-spacer"></div>
@@ -215,6 +303,170 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
         <div class="stat-card"><div class="sc-label">Blocked</div><div class="sc-val" id="stat-blocked">—</div><div class="sc-sub">Suspended accounts</div></div>
       </div>
     </div>
+
+    <!-- Platform Settings panel -->
+    <div class="panel" id="panel-settings">
+
+      <!-- Branding -->
+      <div class="settings-section">
+        <div class="settings-section-title">🏷️ Branding</div>
+        <div class="settings-grid">
+          <div class="setting-row">
+            <label>App Name</label>
+            <div class="setting-input-wrap">
+              <input type="text" id="s-app-name" class="setting-input" placeholder="Rytr"/>
+              <span class="setting-default">Default: Rytr</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>App Slogan</label>
+            <div class="setting-input-wrap">
+              <input type="text" id="s-slogan" class="setting-input" placeholder="Connect to Read"/>
+              <span class="setting-default">Default: Connect to Read</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>Welcome Message</label>
+            <div class="setting-input-wrap">
+              <input type="text" id="s-welcome" class="setting-input" placeholder="Send a message to start the conversation"/>
+              <span class="setting-default">Default: Send a message to start the conversation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Colors -->
+      <div class="settings-section">
+        <div class="settings-section-title">🎨 Colors</div>
+        <div class="settings-grid">
+
+          <div class="setting-row">
+            <label>Primary Blue</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-blue" class="color-picker" value="#3949AB"/>
+                <input type="text"  id="s-color-blue-hex" class="hex-input" value="#3949AB" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #3949AB</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Outgoing Bubble</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-bubble-out" class="color-picker" value="#3949AB"/>
+                <input type="text"  id="s-color-bubble-out-hex" class="hex-input" value="#3949AB" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #3949AB</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Outgoing Bubble Text</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-bubble-out-text" class="color-picker" value="#FFFFFF"/>
+                <input type="text"  id="s-color-bubble-out-text-hex" class="hex-input" value="#FFFFFF" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #FFFFFF</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Incoming Bubble</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-bubble-in" class="color-picker" value="#FFFFFF"/>
+                <input type="text"  id="s-color-bubble-in-hex" class="hex-input" value="#FFFFFF" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #FFFFFF</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Chat Background</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-bg" class="color-picker" value="#F0F2F5"/>
+                <input type="text"  id="s-color-bg-hex" class="hex-input" value="#F0F2F5" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #F0F2F5</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Sidebar Background</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-sidebar" class="color-picker" value="#FFFFFF"/>
+                <input type="text"  id="s-color-sidebar-hex" class="hex-input" value="#FFFFFF" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #FFFFFF</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Unread Badge</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-unread" class="color-picker" value="#25D366"/>
+                <input type="text"  id="s-color-unread-hex" class="hex-input" value="#25D366" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #25D366</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Icon / Tick Color</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-icon" class="color-picker" value="#3949AB"/>
+                <input type="text"  id="s-color-icon-hex" class="hex-input" value="#3949AB" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #3949AB</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label>Lock Card (Gold)</label>
+            <div class="setting-input-wrap">
+              <div class="color-wrap">
+                <input type="color" id="s-color-gold" class="color-picker" value="#F59E0B"/>
+                <input type="text"  id="s-color-gold-hex" class="hex-input" value="#F59E0B" maxlength="7"/>
+              </div>
+              <span class="setting-default">Default: #F59E0B</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Save + Reset -->
+      <div class="settings-actions">
+        <button class="btn-reset" onclick="resetSettings()">↺ Reset to Defaults</button>
+        <button class="btn-save"  onclick="saveSettings()">Save Settings</button>
+      </div>
+
+      <!-- Live preview -->
+      <div class="preview-box">
+        <div class="preview-label">Live Preview</div>
+        <div class="preview-chat" id="preview-chat">
+          <div class="preview-incoming">
+            <div class="preview-bubble-in" id="prev-bubble-in">Hello! How are you?</div>
+          </div>
+          <div class="preview-outgoing">
+            <div class="preview-bubble-out" id="prev-bubble-out">I'm great, thanks!</div>
+          </div>
+          <div class="preview-incoming">
+            <div class="preview-lock">
+              <div class="preview-lock-body">🔒 Locked message · 10 pts</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -227,7 +479,7 @@ import { getAuth, onAuthStateChanged, signOut,
 import { getFirestore, collection, doc,
          getDocs, updateDoc, onSnapshot,
          query, where, orderBy,
-         getDoc, deleteDoc }                      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+         getDoc, deleteDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey:"AIzaSyCMVpe1C0YNP1J_o0k22Ld_l5v2BzFP2xA",
@@ -276,7 +528,8 @@ function showPanel(name, el) {
     pending:  ['Pending Writers','Review and approve writer registrations'],
     users:    ['All Users','Manage reader accounts'],
     writers:  ['All Writers','Manage writer accounts'],
-    overview: ['Overview','Platform statistics']
+    overview: ['Overview','Platform statistics'],
+    settings: ['Platform Settings','Customize colors, branding, and messages']
   };
   document.getElementById('page-title').textContent = titles[name][0];
   document.getElementById('page-sub').textContent   = titles[name][1];
@@ -428,6 +681,140 @@ function toast(msg) {
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2800);
 }
 window.toast=toast;
+
+// ── PLATFORM SETTINGS ──
+
+// Default values — these are the reset targets
+const DEFAULTS = {
+  appName:        'Rytr',
+  slogan:         'Connect to Read',
+  welcome:        'Send a message to start the conversation',
+  colorBlue:      '#3949AB',
+  colorBubbleOut: '#3949AB',
+  colorBubbleOutText: '#FFFFFF',
+  colorBubbleIn:  '#FFFFFF',
+  colorBg:        '#F0F2F5',
+  colorSidebar:   '#FFFFFF',
+  colorUnread:    '#25D366',
+  colorIcon:      '#3949AB',
+  colorGold:      '#F59E0B',
+};
+
+// Map setting id → field name
+const FIELD_MAP = {
+  's-app-name':            'appName',
+  's-slogan':              'slogan',
+  's-welcome':             'welcome',
+  's-color-blue':          'colorBlue',
+  's-color-bubble-out':    'colorBubbleOut',
+  's-color-bubble-out-text':'colorBubbleOutText',
+  's-color-bubble-in':     'colorBubbleIn',
+  's-color-bg':            'colorBg',
+  's-color-sidebar':       'colorSidebar',
+  's-color-unread':        'colorUnread',
+  's-color-icon':          'colorIcon',
+  's-color-gold':          'colorGold',
+};
+
+// Load settings from Firestore into the form
+async function loadSettings() {
+  try {
+    const snap = await getDoc(doc(db,'settings','platform'));
+    const data = snap.exists() ? snap.data() : {};
+    // Populate each field with saved value or default
+    Object.entries(FIELD_MAP).forEach(([inputId, field]) => {
+      const val = data[field] || DEFAULTS[field] || '';
+      const el  = document.getElementById(inputId);
+      if(!el) return;
+      el.value = val;
+      // Sync hex input for color pickers
+      const hexEl = document.getElementById(inputId+'-hex');
+      if(hexEl) hexEl.value = val;
+    });
+    updatePreview();
+  } catch(e) {
+    toast('Could not load settings: '+e.message);
+  }
+}
+
+window.saveSettings = async function() {
+  const data = { updatedAt: serverTimestamp() };
+  Object.entries(FIELD_MAP).forEach(([inputId, field]) => {
+    const el = document.getElementById(inputId);
+    if(el) data[field] = el.value.trim() || DEFAULTS[field];
+  });
+  try {
+    await setDoc(doc(db,'settings','platform'), data, { merge: true });
+    toast('✅ Settings saved! Changes will apply on next page load.');
+    updatePreview();
+  } catch(e) {
+    toast('Save failed: '+e.message);
+  }
+};
+
+window.resetSettings = async function() {
+  if(!confirm('Reset all settings to defaults?')) return;
+  Object.entries(FIELD_MAP).forEach(([inputId, field]) => {
+    const el = document.getElementById(inputId);
+    if(el) el.value = DEFAULTS[field];
+    const hexEl = document.getElementById(inputId+'-hex');
+    if(hexEl) hexEl.value = DEFAULTS[field];
+  });
+  updatePreview();
+  await window.saveSettings();
+  toast('✅ Reset to defaults and saved.');
+};
+
+// Sync color picker ↔ hex input
+function wireColorSync() {
+  Object.keys(FIELD_MAP).forEach(inputId => {
+    const picker = document.getElementById(inputId);
+    const hexEl  = document.getElementById(inputId+'-hex');
+    if(!picker || !hexEl) return;
+    // Color picker → hex input + preview
+    picker.addEventListener('input', () => {
+      hexEl.value = picker.value;
+      updatePreview();
+    });
+    // Hex input → color picker + preview
+    hexEl.addEventListener('input', () => {
+      const v = hexEl.value;
+      if(/^#[0-9A-Fa-f]{6}$/.test(v)) {
+        picker.value = v;
+        updatePreview();
+      }
+    });
+  });
+  // Text inputs also update preview live
+  ['s-app-name','s-slogan','s-welcome'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updatePreview);
+  });
+}
+
+function updatePreview() {
+  const bg      = document.getElementById('s-color-bg')?.value      || DEFAULTS.colorBg;
+  const sidebar = document.getElementById('s-color-sidebar')?.value  || DEFAULTS.colorSidebar;
+  const bubOut  = document.getElementById('s-color-bubble-out')?.value || DEFAULTS.colorBubbleOut;
+  const bubOutTxt= document.getElementById('s-color-bubble-out-text')?.value || DEFAULTS.colorBubbleOutText;
+  const bubIn   = document.getElementById('s-color-bubble-in')?.value  || DEFAULTS.colorBubbleIn;
+
+  const chat = document.getElementById('preview-chat');
+  if(chat) chat.style.background = bg;
+  const outEl = document.getElementById('prev-bubble-out');
+  if(outEl) { outEl.style.background = bubOut; outEl.style.color = bubOutTxt; }
+  const inEl = document.getElementById('prev-bubble-in');
+  if(inEl) inEl.style.background = bubIn;
+}
+
+// Extend showPanel to load settings when switching to it
+const _origShowPanel = window.showPanel;
+window.showPanel = function(name, el) {
+  _origShowPanel(name, el);
+  if(name === 'settings') loadSettings();
+};
+
+// Wire color sync on DOM ready
+wireColorSync();
 </script>
 </body>
 </html>
