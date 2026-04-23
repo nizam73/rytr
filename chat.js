@@ -692,7 +692,7 @@ async function loadRpThread(roomId) {
     snap.forEach(d => docs.push(d));
     docs.sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
     for(const d of docs) {
-      totalEarned += (msg.unlockCount||0) * (msg.price||0);
+      const msg = d.data();
       const unlockRef  = doc(db, `unlocks/${S.currentUser.uid}_${d.id}`);
       const unlocked   = (await getDoc(unlockRef)).exists();
       const isOwn      = msg.senderId === S.currentUser.uid;
