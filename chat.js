@@ -693,6 +693,8 @@ async function loadRpThread(roomId) {
     docs.sort((a,b) => (b.data().createdAt?.seconds||0) - (a.data().createdAt?.seconds||0));
     for(const d of docs) {
       const msg = d.data();
+      // Bug 1 fix: accumulate earned from actual unlock data on each message
+      totalEarned += (msg.unlockCount||0) * (msg.price||0);
       const unlockRef  = doc(db, `unlocks/${S.currentUser.uid}_${d.id}`);
       const unlocked   = (await getDoc(unlockRef)).exists();
       const isOwn      = msg.senderId === S.currentUser.uid;
@@ -740,21 +742,36 @@ async function loadRpMembers(roomId, isOwner) {
   const list = document.getElementById('rp-members-list');
   list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading members...</div>';
   try {
-    // Members = users who have sent at least one message in this room
+    const roomCreatorId = currentRoomProfileData?.createdBy;
+
+    // Step 1: collect all senders in this room
     const msgsSnap = await getDocs(collection(db, `rooms/${roomId}/messages`));
     const memberMap = {};
     msgsSnap.forEach(d => {
       const m = d.data();
       if(!memberMap[m.senderId]) memberMap[m.senderId] = { name: m.senderName||'User', spent: 0 };
     });
-    // Calculate points spent per member
-    const unlocksSnap = await getDocs(collection(db,'unlocks'));
-    unlocksSnap.forEach(d => {
-      const u = d.data();
-      if(memberMap[u.userId]) memberMap[u.userId].spent = (memberMap[u.userId].spent||0) + (u.price||0);
-    });
 
-    const seats = currentRoomProfileData?.seats || 1000;
+    // Step 2: for each locked message in this room, check who unlocked it
+    // unlocks are stored as docs with id = userId_msgId
+    // We query all locked messages and check unlocks per message
+    const lockedSnap = await getDocs(query(
+      collection(db, `rooms/${roomId}/messages`),
+      where('locked','==',true)
+    ));
+    for(const msgDoc of lockedSnap.docs) {
+      const msgId = msgDoc.id;
+      // For each member, check if they unlocked this message
+      for(const uid of Object.keys(memberMap)) {
+        if(uid === roomCreatorId) continue; // skip writer — they don't pay to unlock own room
+        const unlockSnap = await getDoc(doc(db, `unlocks/${uid}_${msgId}`));
+        if(unlockSnap.exists()) {
+          memberMap[uid].spent += (unlockSnap.data().price || msgDoc.data().price || 0);
+        }
+      }
+    }
+
+    const seats      = currentRoomProfileData?.seats || 1000;
     const memberCount = Object.keys(memberMap).length;
     document.getElementById('rp-member-count').textContent = memberCount;
     document.getElementById('rp-members-count-label').textContent = `Members: ${memberCount} / ${seats}`;
@@ -764,14 +781,20 @@ async function loadRpMembers(roomId, isOwner) {
       list.innerHTML = '<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">No members yet.</div>';
       return;
     }
+
     Object.entries(memberMap).forEach(([uid, info]) => {
+      const isCreator = uid === roomCreatorId;
       const item = document.createElement('div');
       item.className = 'rp-member-item';
+      // Bug 3 fix: hide "spent" line for the room creator
+      const spentLine = isCreator
+        ? `<div class="rp-member-pts">Room creator</div>`
+        : `<div class="rp-member-pts">Spent ${info.spent} pts in this room</div>`;
       item.innerHTML = `
         <div class="rp-member-avi">${(info.name[0]||'U').toUpperCase()}</div>
         <div class="rp-member-info">
           <div class="rp-member-name">${esc(info.name)}</div>
-          <div class="rp-member-pts">Spent ${info.spent} pts in this room</div>
+          ${spentLine}
         </div>
         ${isOwner && uid !== S.currentUser.uid
           ? `<button class="rp-remove-btn" onclick="removeMember('${roomId}','${uid}')">Remove</button>`
