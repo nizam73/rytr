@@ -13,6 +13,8 @@
   --border:#E0E0E0;
   --bubble-out:#DCF8C6;
   --bubble-in:#FFFFFF;
+  --bubble-out-bg:#3949AB;
+  --bubble-out-text:#FFFFFF;
   --gold:#F59E0B;
   --gold-light:#FFF8E1;
   --unread:#25D366;
@@ -187,8 +189,8 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   box-shadow:0 1px 2px rgba(0,0,0,.08)
 }
 .bubble.outgoing{
-  background:#3949AB;
-  color:#fff;
+  background:var(--bubble-out-bg);
+  color:var(--bubble-out-text);
   border-radius:12px 0 12px 12px;
   box-shadow:0 1px 2px rgba(0,0,0,.08)
 }
