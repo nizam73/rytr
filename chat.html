@@ -113,7 +113,7 @@
 
     <!-- Room Profile Panel -->
     <div id="room-profile">
-      <!-- Header -->
+      <!-- Header — full width always -->
       <div class="rp-header">
         <button id="rp-back-btn" onclick="closeRoomProfile()">&#8592;</button>
         <div class="rp-avi" id="rp-avi"></div>
@@ -121,46 +121,50 @@
           <div class="rp-name" id="rp-name"></div>
           <div class="rp-sub"  id="rp-sub"></div>
         </div>
-        <!-- Join / Enter button — shown to all users -->
         <button id="rp-join-btn" class="rp-join-btn" onclick="enterRoomFromProfile()">Enter Room</button>
-        <!-- Delete button — shown only to room creator -->
         <button id="rp-delete-btn" class="rp-delete-btn" style="display:none" onclick="deleteRoom()">🗑</button>
       </div>
 
-      <!-- Info cards -->
-      <div class="rp-info-grid">
-        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-created">—</div><div class="rp-stat-lbl">Created</div></div>
-        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-earned">—</div><div class="rp-stat-lbl">Pts Earned</div></div>
-        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-member-count">—</div><div class="rp-stat-lbl">Members</div></div>
-        <div class="rp-stat-card"><div class="rp-stat-val" id="rp-seats">—</div><div class="rp-stat-lbl">Seats</div></div>
-      </div>
+      <!-- Scrollable body — centered column -->
+      <div class="rp-scroll">
+        <div class="rp-content">
 
-      <!-- Bio -->
-      <div style="padding:0 16px 12px">
-        <div class="rp-section-label">About</div>
-        <div class="rp-bio-box"><div id="rp-bio"></div></div>
-      </div>
+          <!-- Info cards -->
+          <div class="rp-info-grid">
+            <div class="rp-stat-card"><div class="rp-stat-val" id="rp-created">—</div><div class="rp-stat-lbl">Created</div></div>
+            <div class="rp-stat-card"><div class="rp-stat-val" id="rp-earned">—</div><div class="rp-stat-lbl">Pts Earned</div></div>
+            <div class="rp-stat-card"><div class="rp-stat-val" id="rp-member-count">—</div><div class="rp-stat-lbl">Members</div></div>
+            <div class="rp-stat-card"><div class="rp-stat-val" id="rp-seats">—</div><div class="rp-stat-lbl">Seats</div></div>
+          </div>
 
-      <!-- Tabs: Thread | Members -->
-      <div class="rp-tabs">
-        <div class="rp-tab active" id="rpt-thread"  onclick="switchRpTab('thread',this)">Thread</div>
-        <div class="rp-tab"        id="rpt-members" onclick="switchRpTab('members',this)">Members</div>
-      </div>
+          <!-- Bio -->
+          <div style="padding:0 16px 12px">
+            <div class="rp-section-label">About</div>
+            <div class="rp-bio-box"><div id="rp-bio"></div></div>
+          </div>
 
-      <!-- Thread tab -->
-      <div id="rp-thread-panel" class="rp-panel">
-        <div id="rp-thread-list"></div>
-      </div>
+          <!-- Tabs -->
+          <div class="rp-tabs">
+            <div class="rp-tab active" id="rpt-thread"  onclick="switchRpTab('thread',this)">Thread</div>
+            <div class="rp-tab"        id="rpt-members" onclick="switchRpTab('members',this)">Members</div>
+          </div>
 
-      <!-- Members tab -->
-      <div id="rp-members-panel" class="rp-panel" style="display:none">
-        <div class="rp-members-header">
-          <span id="rp-members-count-label">Members: —</span>
-          <!-- Add seats button — writer only -->
-          <button id="rp-add-seats-btn" style="display:none" onclick="addSeats()" title="Add seats">＋ Seats</button>
-        </div>
-        <div id="rp-members-list"></div>
-      </div>
+          <!-- Thread tab -->
+          <div id="rp-thread-panel" class="rp-panel">
+            <div id="rp-thread-list"></div>
+          </div>
+
+          <!-- Members tab -->
+          <div id="rp-members-panel" class="rp-panel" style="display:none">
+            <div class="rp-members-header">
+              <span id="rp-members-count-label">Members: —</span>
+              <button id="rp-add-seats-btn" style="display:none" onclick="addSeats()" title="Add seats">＋ Seats</button>
+            </div>
+            <div id="rp-members-list"></div>
+          </div>
+
+        </div><!-- /.rp-content -->
+      </div><!-- /.rp-scroll -->
     </div>
 
     <!-- Chat header -->
