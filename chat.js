@@ -207,30 +207,54 @@ export async function openChat(chatId, type, meta) {
   wrap.appendChild(placeholder);
   const colPath = type==='room' ? `rooms/${chatId}/messages` : `chats/${chatId}/messages`;
   const msgQ    = query(collection(db, colPath), orderBy('createdAt','asc'));
-  S.msgListeners[chatId] = onSnapshot(msgQ, snap => {
+  let isInitialLoad = true;
+  S.msgListeners[chatId] = onSnapshot(msgQ, async snap => {
     if(S.currentChatId !== chatId) return;
-    snap.docChanges().forEach(ch => {
-      if(ch.type === 'added') {
+    if (isInitialLoad) {
+      // Collect all messages, sort, and render in order
+      const messages = [];
+      snap.forEach(doc => messages.push(doc));
+      messages.sort((a, b) => {
+        const ta = a.data().createdAt?.toMillis?.() || 0;
+        const tb = b.data().createdAt?.toMillis?.() || 0;
+        return ta - tb;
+      });
+      for (const doc of messages) {
         document.getElementById('chat-placeholder')?.remove();
-        appendMessage(ch.doc, colPath);
+        await appendMessage(doc, colPath);
         // Mark incoming as read
-        if(ch.doc.data().senderId !== S.currentUser.uid) {
-          const readBy = ch.doc.data().readBy || [];
+        if(doc.data().senderId !== S.currentUser.uid) {
+          const readBy = doc.data().readBy || [];
           if(!readBy.includes(S.currentUser.uid))
-            updateDoc(ch.doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
-        }
-      } else if(ch.type === 'modified') {
-        // Sync readBy tick update without re-rendering the whole row
-        const msgId = ch.doc.id;
-        const tick  = document.getElementById('tick-'+msgId);
-        if(tick) {
-          const rb   = ch.doc.data()?.readBy || [];
-          const read = rb.some(uid => uid !== S.currentUser.uid);
-          tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
-          tick.title = read ? 'Read' : 'Delivered';
+            updateDoc(doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
         }
       }
-    });
+      isInitialLoad = false;
+    } else {
+      // Only handle new/changed messages
+      snap.docChanges().forEach(async ch => {
+        if(ch.type === 'added') {
+          document.getElementById('chat-placeholder')?.remove();
+          await appendMessage(ch.doc, colPath);
+          // Mark incoming as read
+          if(ch.doc.data().senderId !== S.currentUser.uid) {
+            const readBy = ch.doc.data().readBy || [];
+            if(!readBy.includes(S.currentUser.uid))
+              updateDoc(ch.doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
+          }
+        } else if(ch.type === 'modified') {
+          // Sync readBy tick update without re-rendering the whole row
+          const msgId = ch.doc.id;
+          const tick  = document.getElementById('tick-'+msgId);
+          if(tick) {
+            const rb   = ch.doc.data()?.readBy || [];
+            const read = rb.some(uid => uid !== S.currentUser.uid);
+            tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
+            tick.title = read ? 'Read' : 'Delivered';
+          }
+        }
+      });
+    }
   });
 }
 
