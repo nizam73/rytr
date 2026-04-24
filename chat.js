@@ -34,6 +34,14 @@ export function formatTime(d) {
   if(!d) return '';
   return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
 }
+
+function formatDateLabel(d) {
+  const today     = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate()-1);
+  if(d.toDateString() === today.toDateString())     return 'Today';
+  if(d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-US',{ weekday:'short', month:'short', day:'numeric', year: d.getFullYear()!==today.getFullYear()?'numeric':undefined });
+}
 export function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -190,7 +198,6 @@ export async function openChat(chatId, type, meta) {
   S.currentChatId   = chatId;
   S.currentChatType = type;
   S.currentChatMeta = meta;
-  // Import nav function at runtime to avoid circular dependency
   const { revealChat } = await import('./ui.js');
   revealChat(chatId, type, meta);
   const placeholder = document.createElement('div');
@@ -206,10 +213,21 @@ export async function openChat(chatId, type, meta) {
       if(ch.type === 'added') {
         document.getElementById('chat-placeholder')?.remove();
         appendMessage(ch.doc, colPath);
+        // Mark incoming as read
         if(ch.doc.data().senderId !== S.currentUser.uid) {
           const readBy = ch.doc.data().readBy || [];
           if(!readBy.includes(S.currentUser.uid))
             updateDoc(ch.doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
+        }
+      } else if(ch.type === 'modified') {
+        // Sync readBy tick update without re-rendering the whole row
+        const msgId = ch.doc.id;
+        const tick  = document.getElementById('tick-'+msgId);
+        if(tick) {
+          const rb   = ch.doc.data()?.readBy || [];
+          const read = rb.some(uid => uid !== S.currentUser.uid);
+          tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
+          tick.title = read ? 'Read' : 'Delivered';
         }
       }
     });
@@ -223,7 +241,20 @@ async function appendMessage(docSnap, colPath) {
   const wrap  = document.getElementById('messages-wrap');
   if(document.getElementById('msg-'+msgId)) return;
   const isMe  = data.senderId === S.currentUser.uid;
-  const row   = document.createElement('div');
+
+  // ── DATE DIVIDER (WhatsApp style) ──
+  const msgDate  = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+  const dateKey  = msgDate.toDateString();
+  const lastKey  = wrap.dataset.lastDate || '';
+  if(dateKey !== lastKey) {
+    wrap.dataset.lastDate = dateKey;
+    const divider = document.createElement('div');
+    divider.className = 'date-divider';
+    divider.innerHTML = `<span>${formatDateLabel(msgDate)}</span>`;
+    wrap.appendChild(divider);
+  }
+
+  const row = document.createElement('div');
   row.className = `msg-row ${isMe?'outgoing':'incoming'}`;
   row.id = 'msg-'+msgId;
   wrap.appendChild(row);
@@ -240,17 +271,6 @@ async function appendMessage(docSnap, colPath) {
         <div>${esc(data.text)}</div>
         <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
       </div>`;
-    if(isMe) {
-      const tickUnsub = onSnapshot(docSnap.ref, snap => {
-        if(S.currentChatId !== (colPath.split('/')[1])) { tickUnsub(); return; }
-        const rb   = snap.data()?.readBy || [];
-        const read = rb.some(uid => uid !== S.currentUser.uid);
-        const tick = document.getElementById('tick-'+msgId);
-        if(tick) { tick.style.color = read?'#fff':'rgba(255,255,255,.45)'; tick.title = read?'Read':'Delivered'; }
-      });
-      if(!S.msgListeners['_uc_'+S.currentChatId]) S.msgListeners['_uc_'+S.currentChatId] = [];
-      S.msgListeners['_uc_'+S.currentChatId].push(tickUnsub);
-    }
   } else if(isMe) {
     row.innerHTML = `
       <div class="own-locked">
