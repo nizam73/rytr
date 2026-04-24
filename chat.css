@@ -152,17 +152,17 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 #messages-wrap::-webkit-scrollbar{width:4px}
 #messages-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 
-/* Date divider */
+/* Date divider — sticky while scrolling */
 .date-divider{
-  text-align:center;font-size:11px;color:#aaa;
-  margin:8px 0;position:relative
+  display:flex;align-items:center;justify-content:center;
+  margin:12px 0;position:sticky;top:8px;z-index:2;pointer-events:none
 }
 .date-divider span{
-  background:var(--bg);padding:0 10px;position:relative;z-index:1
-}
-.date-divider::before{
-  content:'';position:absolute;top:50%;left:0;right:0;
-  height:1px;background:var(--border)
+  background:rgba(225,225,225,.95);
+  color:#555;font-size:11px;font-weight:500;
+  padding:4px 12px;border-radius:20px;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+  backdrop-filter:blur(4px)
 }
 
 /* Message bubbles */
