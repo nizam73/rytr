@@ -207,53 +207,60 @@ export async function openChat(chatId, type, meta) {
   wrap.appendChild(placeholder);
   const colPath = type==='room' ? `rooms/${chatId}/messages` : `chats/${chatId}/messages`;
   const msgQ    = query(collection(db, colPath), orderBy('createdAt','asc'));
-  let isInitialLoad = true;
+  let initialLoadDone = false;
+
   S.msgListeners[chatId] = onSnapshot(msgQ, async snap => {
     if(S.currentChatId !== chatId) return;
-    if (isInitialLoad) {
-      // Collect all messages, sort, and render in order
-      const messages = [];
-      snap.forEach(doc => messages.push(doc));
-      messages.sort((a, b) => {
-        const ta = a.data().createdAt?.toMillis?.() || 0;
-        const tb = b.data().createdAt?.toMillis?.() || 0;
-        return ta - tb;
+
+    const added = snap.docChanges().filter(ch => ch.type === 'added');
+    const modified = snap.docChanges().filter(ch => ch.type === 'modified');
+
+    if(!initialLoadDone) {
+      // ── INITIAL LOAD: sort ALL docs by createdAt, render sequentially ──
+      initialLoadDone = true;
+      document.getElementById('chat-placeholder')?.remove();
+
+      // Sort by createdAt seconds (handle null serverTimestamp on pending writes)
+      const sorted = added.map(ch => ch.doc).sort((a,b) => {
+        const at = a.data().createdAt?.seconds ?? Infinity;
+        const bt = b.data().createdAt?.seconds ?? Infinity;
+        return at - bt;
       });
-      for (const doc of messages) {
-        document.getElementById('chat-placeholder')?.remove();
-        await appendMessage(doc, colPath);
+
+      // Render one by one in order so date dividers are correct
+      for(const docSnap of sorted) {
+        await appendMessage(docSnap, colPath);
         // Mark incoming as read
-        if(doc.data().senderId !== S.currentUser.uid) {
-          const readBy = doc.data().readBy || [];
+        if(docSnap.data().senderId !== S.currentUser.uid) {
+          const readBy = docSnap.data().readBy || [];
           if(!readBy.includes(S.currentUser.uid))
-            updateDoc(doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
+            updateDoc(docSnap.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
         }
       }
-      isInitialLoad = false;
     } else {
-      // Only handle new/changed messages
-      snap.docChanges().forEach(async ch => {
-        if(ch.type === 'added') {
-          document.getElementById('chat-placeholder')?.remove();
-          await appendMessage(ch.doc, colPath);
-          // Mark incoming as read
-          if(ch.doc.data().senderId !== S.currentUser.uid) {
-            const readBy = ch.doc.data().readBy || [];
-            if(!readBy.includes(S.currentUser.uid))
-              updateDoc(ch.doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
-          }
-        } else if(ch.type === 'modified') {
-          // Sync readBy tick update without re-rendering the whole row
-          const msgId = ch.doc.id;
-          const tick  = document.getElementById('tick-'+msgId);
-          if(tick) {
-            const rb   = ch.doc.data()?.readBy || [];
-            const read = rb.some(uid => uid !== S.currentUser.uid);
-            tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
-            tick.title = read ? 'Read' : 'Delivered';
-          }
+      // ── LIVE: new messages arriving one at a time after initial load ──
+      for(const ch of added) {
+        if(S.currentChatId !== chatId) return;
+        document.getElementById('chat-placeholder')?.remove();
+        await appendMessage(ch.doc, colPath);
+        if(ch.doc.data().senderId !== S.currentUser.uid) {
+          const readBy = ch.doc.data().readBy || [];
+          if(!readBy.includes(S.currentUser.uid))
+            updateDoc(ch.doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
         }
-      });
+      }
+    }
+
+    // Handle readBy tick updates (modified events)
+    for(const ch of modified) {
+      const msgId = ch.doc.id;
+      const tick  = document.getElementById('tick-'+msgId);
+      if(tick) {
+        const rb   = ch.doc.data()?.readBy || [];
+        const read = rb.some(uid => uid !== S.currentUser.uid);
+        tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
+        tick.title = read ? 'Read' : 'Delivered';
+      }
     }
   });
 }
