@@ -92,6 +92,14 @@ onAuthStateChanged(auth, async user => {
   S.currentUserData = snap.data();
   if(S.currentUserData.blocked) { await signOut(auth); window.location.href = 'index.html'; return; }
   if(S.currentUserData.role === 'admin') { window.location.href = 'admin.html'; return; }
+
+  // Writer approval check — unapproved writers cannot access the app
+  // (This is a secondary guard; primary check is in index.html doLogin)
+  if(S.currentUserData.role === 'writer' && !S.currentUserData.approved) {
+    await signOut(auth);
+    window.location.href = 'index.html';
+    return;
+  }
   document.getElementById('loading-screen').style.display = 'none';
   await applyPlatformSettings();
   await initUI();
