@@ -269,7 +269,17 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh}
     </div>
   </div>
 
-  <!-- VERIFY WALL (shown after signup) -->
+  <!-- PENDING APPROVAL WALL (shown to unapproved writers) -->
+  <div id="pending-wall" style="display:none;background:var(--white);border-radius:16px;padding:40px 36px;width:100%;max-width:480px;box-shadow:0 2px 20px rgba(0,0,0,.08);text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">⏳</div>
+    <h2 style="font-size:22px;font-weight:700;color:var(--blue);margin-bottom:10px">Pending Approval</h2>
+    <p style="font-size:14px;color:#555;line-height:1.7;margin-bottom:20px">
+      Your writer account is awaiting admin approval.<br/>
+      You'll be able to log in once an admin reviews your request.<br/>
+      <strong>Please check back later.</strong>
+    </p>
+    <button class="resend-btn" onclick="showLogin()" style="background:none;border:1.5px solid var(--blue);color:var(--blue);padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;font-family:'Roboto',sans-serif;cursor:pointer">← Back to Login</button>
+  </div>
   <div id="verify-wall">
     <div class="vicon">✉️</div>
     <h2>Check your email</h2>
@@ -393,8 +403,9 @@ function showForgot() {
 }
 
 function showLogin() {
-  document.getElementById('card').style.display        = '';
-  document.getElementById('verify-wall').style.display = 'none';
+  document.getElementById('card').style.display         = '';
+  document.getElementById('verify-wall').style.display  = 'none';
+  document.getElementById('pending-wall').style.display = 'none';
   currentMode = 'login';
   clearMsg();
   showLoginFormForRole();
@@ -490,6 +501,16 @@ async function doLogin() {
     if(userData.blocked) {
       await signOut(auth);
       setMsg('Your account has been suspended. Contact support.', 'error');
+      setBtnLoading(btn, false);
+      return;
+    }
+
+    // Writer approval check — show pending wall right here, never go to chat.html
+    if(role === 'writer' && !userData.approved) {
+      await signOut(auth);
+      document.getElementById('card').style.display        = 'none';
+      document.getElementById('verify-wall').style.display = 'none';
+      document.getElementById('pending-wall').style.display = '';
       setBtnLoading(btn, false);
       return;
     }
