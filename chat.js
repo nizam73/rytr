@@ -9,7 +9,8 @@ import { getFirestore,
          collection, doc, addDoc, getDoc, getDocs,
          setDoc, updateDoc, onSnapshot, query,
          where, orderBy, serverTimestamp,
-         runTransaction, increment, limit, startAfter,
+         runTransaction, increment, limit,
+         limitToLast, startAfter, endBefore,
          arrayUnion }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { S }                       from "./state.js";
 
@@ -188,164 +189,229 @@ function renderChatItem(docSnap, type) {
   if(!S.chatListeners[id]) { S.chatListeners[id] = true; listenUnreadForChat(id, type); }
 }
 
-// ── PAGINATION STATE ──
 const PAGE_SIZE = 15;
-let paginationState = {}; // chatId -> { lastDoc: DocumentSnapshot, hasMore: boolean, isLoading: boolean }
-
-// ── LOAD MESSAGES (Paginated) ──
-async function loadMessages(chatId, colPath, isFirstLoad = false) {
-  const wrap = document.getElementById('messages-wrap');
-  const state = paginationState[chatId] || { lastDoc: null, hasMore: true, isLoading: false };
-  if (!state.hasMore || state.isLoading) return;
-  state.isLoading = true;
-  paginationState[chatId] = state;
-
-  // Show loading indicator
-  let loader = document.getElementById('load-more-loader');
-  if (!loader) {
-    loader = document.createElement('div');
-    loader.id = 'load-more-loader';
-    loader.style.cssText = 'text-align:center;padding:12px;color:#888;font-size:13px';
-    loader.textContent = 'Loading...';
-  }
-  if (isFirstLoad) {
-    wrap.innerHTML = '';
-    wrap.appendChild(loader);
-  } else {
-    const loadMoreBtn = document.getElementById('load-more-btn');
-    loadMoreBtn?.replaceWith(loader);
-  }
-
-  try {
-    let msgQ;
-    if (state.lastDoc) {
-      msgQ = query(collection(db, colPath), orderBy('createdAt', 'asc'), startAfter(state.lastDoc), limit(PAGE_SIZE));
-    } else {
-      msgQ = query(collection(db, colPath), orderBy('createdAt', 'asc'), limit(PAGE_SIZE));
-    }
-    const snap = await getDocs(msgQ);
-    const messages = snap.docs;
-    state.hasMore = messages.length === PAGE_SIZE;
-    state.lastDoc = messages.length > 0 ? messages[messages.length - 1] : null;
-    paginationState[chatId] = state;
-
-    if (isFirstLoad) {
-      document.getElementById('chat-placeholder')?.remove();
-      wrap.innerHTML = '';
-    }
-    loader.remove();
-
-    // Render messages in order
-    for (const doc of messages) {
-      await appendMessage(doc, colPath, !isFirstLoad);
-      // Mark incoming as read
-      if (doc.data().senderId !== S.currentUser.uid) {
-        const readBy = doc.data().readBy || [];
-        if (!readBy.includes(S.currentUser.uid)) {
-          updateDoc(doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(() => {});
-        }
-      }
-    }
-
-    // Add "Load More" button if there are more messages
-    if (state.hasMore) {
-      addLoadMoreButton(chatId, colPath);
-    }
-  } catch (e) {
-    console.error('Error loading messages:', e);
-    loader.textContent = 'Error loading messages';
-  } finally {
-    state.isLoading = false;
-    paginationState[chatId] = state;
-  }
-}
-
-// ── ADD LOAD MORE BUTTON ──
-function addLoadMoreButton(chatId, colPath) {
-  const wrap = document.getElementById('messages-wrap');
-  const existingBtn = document.getElementById('load-more-btn');
-  if (existingBtn) existingBtn.remove();
-  const btn = document.createElement('div');
-  btn.id = 'load-more-btn';
-  btn.style.cssText = 'text-align:center;padding:12px;cursor:pointer;color:var(--blue);font-size:13px;font-weight:500';
-  btn.textContent = '↑ Load more messages';
-  btn.onclick = () => loadMessages(chatId, colPath, false);
-  wrap.insertBefore(btn, wrap.firstChild);
-}
 
 // ── OPEN CHAT ──
 export async function openChat(chatId, type, meta) {
+  // Unsubscribe all previous listeners
   Object.entries(S.msgListeners).forEach(([k,v]) => { if(Array.isArray(v)) v.forEach(fn=>fn()); else v(); });
   Object.keys(S.msgListeners).forEach(k => delete S.msgListeners[k]);
-  paginationState[chatId] = { lastDoc: null, hasMore: true, isLoading: false };
+
   const wrap = document.getElementById('messages-wrap');
   wrap.innerHTML = '';
+  wrap.dataset.lastDate = '';
   S.unlockDataMap.clear();
-  S.currentChatId   = chatId;
-  S.currentChatType = type;
-  S.currentChatMeta = meta;
+  S.currentChatId    = chatId;
+  S.currentChatType  = type;
+  S.currentChatMeta  = meta;
+  S.paginationDone   = false;
+  S.paginationFirstDoc = null;
+
+  const colPath = type==='room' ? `rooms/${chatId}/messages` : `chats/${chatId}/messages`;
+  S.paginationColPath = colPath;
+
   const { revealChat } = await import('./ui.js');
   revealChat(chatId, type, meta);
-  const placeholder = document.createElement('div');
-  placeholder.id = 'chat-placeholder';
-  placeholder.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#bbb;gap:10px;pointer-events:none;user-select:none';
-  placeholder.innerHTML = `<div style="font-size:44px">💬</div><div style="font-size:13px;font-weight:500">Send a message to start the conversation</div>`;
-  wrap.appendChild(placeholder);
-  const colPath = type === 'room' ? `rooms/${chatId}/messages` : `chats/${chatId}/messages`;
-  await loadMessages(chatId, colPath, true);
-  // Real-time listener for new messages
-  const msgQ = query(collection(db, colPath), orderBy('createdAt', 'asc'));
-  S.msgListeners[chatId] = onSnapshot(msgQ, snap => {
-    if (S.currentChatId !== chatId) return;
-    snap.docChanges().forEach(ch => {
-      if (ch.type === 'added') {
-        document.getElementById('chat-placeholder')?.remove();
-        appendMessage(ch.doc, colPath, true);
-        if (ch.doc.data().senderId !== S.currentUser.uid) {
-          const readBy = ch.doc.data().readBy || [];
-          if (!readBy.includes(S.currentUser.uid)) {
-            updateDoc(ch.doc.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(() => {});
-          }
-        }
-      } else if (ch.type === 'modified') {
-        const msgId = ch.doc.id;
-        const tick = document.getElementById('tick-' + msgId);
-        if (tick) {
-          const rb = ch.doc.data()?.readBy || [];
-          const read = rb.some(uid => uid !== S.currentUser.uid);
-          tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
-          tick.title = read ? 'Read' : 'Delivered';
-        }
+
+  // Step 1: Load last PAGE_SIZE messages
+  const initialQ = query(
+    collection(db, colPath),
+    orderBy('createdAt','asc'),
+    limitToLast(PAGE_SIZE)
+  );
+  const initialSnap = await getDocs(initialQ);
+
+  if(initialSnap.empty) {
+    const ph = document.createElement('div');
+    ph.id = 'chat-placeholder';
+    ph.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#bbb;gap:10px;pointer-events:none;user-select:none';
+    ph.innerHTML = `<div style="font-size:44px">💬</div><div style="font-size:13px;font-weight:500">Send a message to start the conversation</div>`;
+    wrap.appendChild(ph);
+    S.paginationDone = true;
+  } else {
+    const docs = initialSnap.docs;
+    S.paginationFirstDoc = docs[0];
+    if(docs.length < PAGE_SIZE) S.paginationDone = true;
+    if(!S.paginationDone) insertLoadMoreBtn(wrap);
+    for(const docSnap of docs) {
+      await appendMessage(docSnap, colPath);
+      markRead(docSnap);
+    }
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  // Step 2: Live listener — only messages AFTER what we already loaded
+  const lastDoc = initialSnap.docs[initialSnap.docs.length - 1];
+  const liveQ   = lastDoc
+    ? query(collection(db, colPath), orderBy('createdAt','asc'), startAfter(lastDoc))
+    : query(collection(db, colPath), orderBy('createdAt','asc'), limitToLast(1));
+
+  S.msgListeners[chatId] = onSnapshot(liveQ, async snap => {
+    if(S.currentChatId !== chatId) return;
+
+    for(const ch of snap.docChanges().filter(c => c.type==='added')) {
+      if(S.currentChatId !== chatId) return;
+      document.getElementById('chat-placeholder')?.remove();
+      await appendMessage(ch.doc, colPath);
+      markRead(ch.doc);
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+
+    for(const ch of snap.docChanges().filter(c => c.type==='modified')) {
+      const tick = document.getElementById('tick-'+ch.doc.id);
+      if(tick) {
+        const rb   = ch.doc.data()?.readBy || [];
+        const read = rb.some(u => u !== S.currentUser.uid);
+        tick.style.color = read ? '#fff' : 'rgba(255,255,255,.45)';
+        tick.title = read ? 'Read' : 'Delivered';
       }
-    });
+    }
   });
 }
 
-// ── RENDER MESSAGE ──
-async function appendMessage(docSnap, colPath, scrollToBottom = true) {
+// ── LOAD MORE (older messages) ──
+window.loadMoreMessages = async function() {
+  const chatId  = S.currentChatId;
+  const colPath = S.paginationColPath;
+  if(!chatId || !colPath || S.paginationDone || !S.paginationFirstDoc) return;
+
+  const btn = document.getElementById('load-more-btn');
+  if(btn) { btn.textContent = 'Loading...'; btn.disabled = true; }
+
+  const wrap = document.getElementById('messages-wrap');
+  try {
+    const olderQ = query(
+      collection(db, colPath),
+      orderBy('createdAt','asc'),
+      endBefore(S.paginationFirstDoc),
+      limitToLast(PAGE_SIZE)
+    );
+    const snap = await getDocs(olderQ);
+
+    document.getElementById('load-more-btn')?.remove();
+
+    if(snap.empty) {
+      S.paginationDone = true;
+      return;
+    }
+
+    const docs = snap.docs;
+    S.paginationFirstDoc = docs[0];
+    if(docs.length < PAGE_SIZE) S.paginationDone = true;
+
+    // Save scroll position before prepending
+    const scrollHeightBefore = wrap.scrollHeight;
+    const scrollTopBefore    = wrap.scrollTop;
+
+    // Insert anchor at top of messages
+    const anchor = document.createElement('div');
+    anchor.id = 'prepend-anchor';
+    anchor.dataset.prevDate = '';
+    const firstChild = wrap.querySelector('.msg-row, .date-divider');
+    if(firstChild) wrap.insertBefore(anchor, firstChild);
+    else wrap.prepend(anchor);
+
+    // Render old messages before the anchor
+    for(const docSnap of docs) {
+      await appendMessageBefore(docSnap, colPath, anchor);
+    }
+    anchor.remove();
+
+    // Re-insert load-more button at very top if more pages exist
+    if(!S.paginationDone) insertLoadMoreBtn(wrap, true);
+
+    // Restore scroll so user stays at the same visual position
+    wrap.scrollTop = scrollTopBefore + (wrap.scrollHeight - scrollHeightBefore);
+
+  } catch(e) {
+    const b = document.getElementById('load-more-btn');
+    if(b) { b.textContent = 'Load older messages'; b.disabled = false; }
+  }
+};
+
+function insertLoadMoreBtn(wrap, atTop=false) {
+  document.getElementById('load-more-btn')?.remove();
+  const btn = document.createElement('button');
+  btn.id        = 'load-more-btn';
+  btn.textContent = '↑ Load older messages';
+  btn.onclick   = window.loadMoreMessages;
+  if(atTop) {
+    wrap.prepend(btn);
+  } else {
+    const first = wrap.querySelector('.msg-row, .date-divider');
+    if(first) wrap.insertBefore(btn, first);
+    else wrap.prepend(btn);
+  }
+}
+
+function markRead(docSnap) {
+  if(docSnap.data().senderId !== S.currentUser.uid) {
+    const readBy = docSnap.data().readBy || [];
+    if(!readBy.includes(S.currentUser.uid))
+      updateDoc(docSnap.ref, { readBy: arrayUnion(S.currentUser.uid) }).catch(()=>{});
+  }
+}
+
+// Render a message BEFORE an anchor element (used when prepending older messages)
+async function appendMessageBefore(docSnap, colPath, anchor) {
+  const data  = docSnap.data();
+  const msgId = docSnap.id;
+  const wrap  = anchor.parentElement;
+  if(document.getElementById('msg-'+msgId)) return;
+  const isMe  = data.senderId === S.currentUser.uid;
+
+  // Date divider for prepended batch (tracks forward through the batch)
+  const msgDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+  const dateKey = msgDate.toDateString();
+  const prevKey = anchor.dataset.prevDate || '';
+  if(dateKey !== prevKey) {
+    anchor.dataset.prevDate = dateKey;
+    const div = document.createElement('div');
+    div.className = 'date-divider';
+    div.innerHTML = `<span>${formatDateLabel(msgDate)}</span>`;
+    anchor.insertAdjacentElement('beforebegin', div);
+  }
+
+  const row = document.createElement('div');
+  row.className = `msg-row ${isMe?'outgoing':'incoming'}`;
+  row.id = 'msg-'+msgId;
+  anchor.insertAdjacentElement('beforebegin', row);
+  await fillMessageRow(row, docSnap, colPath, isMe);
+}
+
+
+// ── RENDER MESSAGE (append to bottom) ──
+async function appendMessage(docSnap, colPath) {
   const data  = docSnap.data();
   const msgId = docSnap.id;
   const wrap  = document.getElementById('messages-wrap');
   if(document.getElementById('msg-'+msgId)) return;
   const isMe  = data.senderId === S.currentUser.uid;
 
-  // ── DATE DIVIDER (WhatsApp style) ──
-  const msgDate  = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
-  const dateKey  = msgDate.toDateString();
-  const lastKey  = wrap.dataset.lastDate || '';
+  // Date divider
+  const msgDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+  const dateKey = msgDate.toDateString();
+  const lastKey = wrap.dataset.lastDate || '';
   if(dateKey !== lastKey) {
     wrap.dataset.lastDate = dateKey;
-    const divider = document.createElement('div');
-    divider.className = 'date-divider';
-    divider.innerHTML = `<span>${formatDateLabel(msgDate)}</span>`;
-    wrap.appendChild(divider);
+    const div = document.createElement('div');
+    div.className = 'date-divider';
+    div.innerHTML = `<span>${formatDateLabel(msgDate)}</span>`;
+    wrap.appendChild(div);
   }
 
   const row = document.createElement('div');
   row.className = `msg-row ${isMe?'outgoing':'incoming'}`;
   row.id = 'msg-'+msgId;
   wrap.appendChild(row);
-  const time = data.createdAt?.toDate ? formatTime(data.createdAt.toDate()) : formatTime(new Date());
+  await fillMessageRow(row, docSnap, colPath, isMe);
+}
+
+// ── SHARED CONTENT BUILDER ──
+async function fillMessageRow(row, docSnap, colPath, isMe) {
+  const data  = docSnap.data();
+  const msgId = docSnap.id;
+  const time  = data.createdAt?.toDate ? formatTime(data.createdAt.toDate()) : formatTime(new Date());
 
   if(!data.locked) {
     const readBy  = data.readBy || [];
@@ -358,6 +424,7 @@ async function appendMessage(docSnap, colPath, scrollToBottom = true) {
         <div>${esc(data.text)}</div>
         <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
       </div>`;
+
   } else if(isMe) {
     row.innerHTML = `
       <div class="own-locked">
@@ -373,6 +440,7 @@ async function appendMessage(docSnap, colPath, scrollToBottom = true) {
         </div>
       </div>`;
     listenUnlockCount(docSnap.ref, msgId, data.price, S.currentChatId);
+
   } else {
     S.unlockDataMap.set(msgId, { colPath, senderName: data.senderName||'', price: data.price, senderId: data.senderId });
     const unlockCount = data.unlockCount || 0;
@@ -405,9 +473,6 @@ async function appendMessage(docSnap, colPath, scrollToBottom = true) {
           </div>
         </div>`;
     }
-  }
-  if (scrollToBottom) {
-    wrap.scrollTop = wrap.scrollHeight;
   }
 }
 
