@@ -152,7 +152,17 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 #messages-wrap::-webkit-scrollbar{width:4px}
 #messages-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
 
-/* Date divider — sticky while scrolling */
+/* Load more button */
+#load-more-btn{
+  display:block;margin:10px auto;
+  background:rgba(225,225,225,.95);color:#555;
+  border:none;border-radius:20px;padding:6px 18px;
+  font-size:12px;font-weight:500;font-family:'Roboto',sans-serif;
+  cursor:pointer;transition:all .2s;
+  box-shadow:0 1px 3px rgba(0,0,0,.1)
+}
+#load-more-btn:hover{background:#e0e0e0;color:#333}
+#load-more-btn:disabled{opacity:.6;cursor:not-allowed}
 .date-divider{
   display:flex;align-items:center;justify-content:center;
   margin:12px 0;position:sticky;top:8px;z-index:2;pointer-events:none
