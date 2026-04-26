@@ -111,7 +111,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   padding:1px 6px;border-radius:4px;font-weight:500;margin-left:4px
 }
 
-/* ── MAIN PANEL ──  */
+/* ── MAIN PANEL ── */
 #main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 
 /* Empty state */
@@ -485,7 +485,7 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   display:none;
   flex-direction:column;
   position:absolute;inset:0;
-  background:var(--bg);
+  background:#E8EAF6;
   z-index:5;
   overflow:hidden
 }
@@ -534,8 +534,8 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
 /* Content column constrained to 67% on desktop, full-width on mobile */
 #room-profile .rp-content{
   width:100%;max-width:680px;
-  display:flex;flex-direction:column; 
-  background: #e8eaf6;
+  display:flex;flex-direction:column;
+  background:#E8EAF6;
   flex:1
 }
 
