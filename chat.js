@@ -117,6 +117,10 @@ onAuthStateChanged(auth, async user => {
 async function initUI() {
   document.getElementById('balance-val').textContent = S.currentUserData.balance ?? 20;
   document.getElementById('earned-val').textContent  = S.currentUserData.earned  ?? 0;
+
+  // User identity in sidebar
+  document.getElementById('sb-user-name').textContent = S.currentUserData.displayName || S.currentUser.displayName || 'User';
+  document.getElementById('sb-user-role').textContent = S.currentUserData.role || 'reader';
   const urlParams    = new URLSearchParams(window.location.search);
   const inviteRoomId = urlParams.get('room');
   const inviteWriter = urlParams.get('writer');
