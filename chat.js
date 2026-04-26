@@ -31,6 +31,15 @@ export const db   = getFirestore(app);
 export function esc(s='') {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+// Convert URLs in escaped text to clickable links
+function linkify(escapedText) {
+  // Match http/https URLs (already HTML-escaped so & is &amp; etc — safe to link)
+  return escapedText.replace(
+    /(https?:\/\/[^\s<>"]+)/g,
+    '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;word-break:break-all">$1</a>'
+  );
+}
 export function formatTime(d) {
   if(!d) return '';
   return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
@@ -433,7 +442,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
       ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
       <div class="bubble ${isMe?'outgoing':'incoming'}">
         ${!isMe && S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
-        <div>${esc(data.text)}</div>
+        <div>${linkify(esc(data.text))}</div>
         <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
       </div>`;
 
@@ -626,7 +635,7 @@ window.confirmUnlock = async function() {
         <div class="revealed-card">
           <div class="revealed-card-body">
             <div class="bubble-name">${esc(d.senderName||'')}</div>
-            <div style="font-size:14px;line-height:1.6">${esc(d.text)}</div>
+            <div style="font-size:14px;line-height:1.6">${linkify(esc(d.text))}</div>
             <div class="bubble-time">${formatTime(new Date())}</div>
             <div class="revealed-badge">✓ Unlocked · ${price} pts spent</div>
           </div>
@@ -925,7 +934,7 @@ async function loadRpThread(roomId) {
 
       let contentHtml = '';
       if(isOwn || unlocked) {
-        contentHtml = `<div class="rp-thread-revealed">${esc(msg.text)}</div>`;
+        contentHtml = `<div class="rp-thread-revealed">${linkify(esc(msg.text))}</div>`;
         if(unlocked && !isOwn) contentHtml += `<div class="rp-thread-revealed-badge">✓ Unlocked · ${msg.price} pts spent</div>`;
       } else {
         contentHtml = `
