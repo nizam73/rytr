@@ -111,8 +111,8 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;overf
   padding:1px 6px;border-radius:4px;font-weight:500;margin-left:4px
 }
 
-/* ── MAIN PANEL ── */
-#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+/* ── MAIN PANEL ── SELF EDIT */
+#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;background: #e8eaf6;}
 
 /* Empty state */
 #empty-state{
