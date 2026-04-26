@@ -47,6 +47,8 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
 .nav-item:hover{background:var(--bg);color:var(--blue)}
 .nav-item.active{background:var(--blue-light);color:var(--blue);border-left-color:var(--blue)}
 .nav-item .ni-icon{font-size:16px}
+/* Full label text shown on desktop */
+.nav-label{font-size:14px;font-weight:500}
 .nav-badge{
   margin-left:auto;background:var(--red);color:#fff;
   border-radius:20px;min-width:20px;height:20px;
@@ -224,8 +226,99 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
   padding:10px 14px;font-size:12px;color:#795548
 }
 
-/* Toast */
-#toast{
+/* ── RESPONSIVE MOBILE ── */
+@media(max-width:768px){
+
+  /* Stack layout vertically */
+  #app{flex-direction:column;min-height:100vh;height:100vh}
+  #main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+  /* Sidebar becomes a sticky top bar */
+  #sidebar{
+    width:100%;height:auto;
+    border-right:none;border-bottom:1px solid var(--border);
+    flex-direction:row;align-items:center;
+    position:sticky;top:0;z-index:50;
+    flex-shrink:0
+  }
+
+  /* Brand in top bar */
+  #sb-top{
+    padding:12px 16px;border-bottom:none;border-right:1px solid var(--border);
+    flex-shrink:0
+  }
+  #sb-brand{font-size:20px}
+  #sb-role{display:none}
+
+  /* Nav items become horizontal scrollable icon bar */
+  #nav-items{
+    display:flex;flex:1;overflow-x:auto;
+    scrollbar-width:none
+  }
+  #nav-items::-webkit-scrollbar{display:none}
+
+  .nav-item{
+    flex-direction:column;align-items:center;justify-content:center;
+    padding:10px 16px;gap:3px;
+    border-left:none;border-bottom:3px solid transparent;
+    font-size:10px;white-space:nowrap;flex-shrink:0
+  }
+  .nav-item.active{
+    border-left:none;border-bottom-color:var(--blue);
+    background:var(--blue-light)
+  }
+  .nav-item .ni-icon{font-size:18px}
+  .nav-badge{position:absolute;top:6px;right:10px}
+  .nav-item{position:relative}
+  /* Shrink label text on mobile */
+  .nav-label{font-size:10px;font-weight:500}
+
+  /* Hide spacer and logout from sidebar on mobile */
+  .nav-spacer{display:none}
+  .nav-logout{
+    padding:10px 16px;border-top:none;border-left:1px solid var(--border);
+    flex-direction:column;font-size:10px;gap:3px;flex-shrink:0
+  }
+
+  /* Main panel full width */
+  #main{flex:1;overflow:hidden}
+
+  /* Page header compact */
+  #page-header{padding:12px 16px}
+  #page-header h1{font-size:17px}
+  #page-header .subtitle{font-size:11px}
+
+  /* Panels full width, less padding */
+  .panel{padding:14px 14px}
+
+  /* Stats grid 2 cols */
+  .stats-grid{grid-template-columns:1fr 1fr}
+
+  /* User cards stack actions below info */
+  .user-card{
+    flex-wrap:wrap;gap:10px;padding:12px 14px
+  }
+  .user-actions{
+    width:100%;justify-content:flex-end;
+    border-top:1px solid var(--border);padding-top:10px;margin-top:2px
+  }
+
+  /* Settings section */
+  .setting-row{flex-direction:column;gap:6px}
+  .setting-row label{min-width:unset;padding-top:0;font-size:12px}
+  .settings-actions{flex-direction:column}
+  .btn-save,.btn-reset{width:100%}
+  .rp-info-grid{grid-template-columns:1fr 1fr}
+
+  /* Preview chat smaller */
+  .preview-chat{padding:10px}
+  .preview-bubble-in,.preview-bubble-out{max-width:80%}
+}
+
+@media(max-width:400px){
+  .stats-grid{grid-template-columns:1fr}
+  .nav-item{padding:8px 12px}
+}
   position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(10px);
   background:#333;color:#fff;padding:10px 20px;border-radius:20px;
   font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;white-space:nowrap
@@ -248,25 +341,35 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
       <div id="sb-role">Admin Panel</div>
     </div>
 
-    <div class="nav-item active" onclick="showPanel('pending',this)">
-      <span class="ni-icon">⏳</span> Pending Writers
-      <span class="nav-badge" id="pending-badge">0</span>
-    </div>
-    <div class="nav-item" onclick="showPanel('users',this)">
-      <span class="ni-icon">👥</span> All Users
-    </div>
-    <div class="nav-item" onclick="showPanel('writers',this)">
-      <span class="ni-icon">✍️</span> All Writers
-    </div>
-    <div class="nav-item" onclick="showPanel('overview',this)">
-      <span class="ni-icon">📊</span> Overview
-    </div>
-    <div class="nav-item" onclick="showPanel('settings',this)">
-      <span class="ni-icon">⚙️</span> Platform Settings
+    <div id="nav-items">
+      <div class="nav-item active" onclick="showPanel('pending',this)">
+        <span class="ni-icon">⏳</span>
+        <span class="nav-label">Pending</span>
+        <span class="nav-badge" id="pending-badge">0</span>
+      </div>
+      <div class="nav-item" onclick="showPanel('users',this)">
+        <span class="ni-icon">👥</span>
+        <span class="nav-label">Users</span>
+      </div>
+      <div class="nav-item" onclick="showPanel('writers',this)">
+        <span class="ni-icon">✍️</span>
+        <span class="nav-label">Writers</span>
+      </div>
+      <div class="nav-item" onclick="showPanel('overview',this)">
+        <span class="ni-icon">📊</span>
+        <span class="nav-label">Overview</span>
+      </div>
+      <div class="nav-item" onclick="showPanel('settings',this)">
+        <span class="ni-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
+      </div>
     </div>
 
     <div class="nav-spacer"></div>
-    <div class="nav-logout" onclick="doLogout()">🚪 Logout</div>
+    <div class="nav-logout" onclick="doLogout()">
+      <span>🚪</span>
+      <span class="nav-label">Logout</span>
+    </div>
   </div>
 
   <!-- MAIN -->
