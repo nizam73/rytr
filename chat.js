@@ -617,6 +617,8 @@ window.confirmUnlock = async function() {
     toast('🔓 Unlocked!');
     const msgSnap = await getDoc(doc(db,colPath,msgId));
     const d = msgSnap.data();
+
+    // Update main chat row if visible
     const row = document.getElementById('msg-'+msgId);
     if(row) {
       row.innerHTML = `
@@ -629,6 +631,17 @@ window.confirmUnlock = async function() {
             <div class="revealed-badge">✓ Unlocked · ${price} pts spent</div>
           </div>
         </div>`;
+    }
+
+    // Update thread item in room profile if open
+    const threadItem = document.getElementById('thread-item-'+msgId);
+    if(threadItem) {
+      const contentEl = threadItem.querySelector('.rp-thread-content');
+      if(contentEl) {
+        contentEl.innerHTML = `
+          <div class="rp-thread-revealed">${esc(d.text)}</div>
+          <div class="rp-thread-revealed-badge">✓ Unlocked · ${price} pts spent</div>`;
+      }
     }
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Unlock 🔓';
@@ -908,6 +921,7 @@ async function loadRpThread(roomId) {
       const isOwn      = msg.senderId === S.currentUser.uid;
       const item = document.createElement('div');
       item.className = 'rp-thread-item';
+      item.id = 'thread-item-' + d.id;
 
       let contentHtml = '';
       if(isOwn || unlocked) {
@@ -933,7 +947,7 @@ async function loadRpThread(roomId) {
           <span class="rp-thread-sender">${esc(msg.senderName||'Writer')}</span>
           <span class="rp-thread-price">🪙 ${msg.price} pts · ${time}</span>
         </div>
-        ${contentHtml}
+        <div class="rp-thread-content">${contentHtml}</div>
         ${isOwn ? `<div class="rp-thread-stats">
           <span class="rp-thread-stat">Unlocked by <b>${msg.unlockCount||0}</b></span>
           <span class="rp-thread-stat">Earned <b>🪙 ${(msg.unlockCount||0)*(msg.price||0)}</b></span>
