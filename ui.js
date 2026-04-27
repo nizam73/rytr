@@ -23,40 +23,6 @@ export function toast(msg) {
 }
 window.toast = toast;
 
-// Add smooth CSS transitions for UI
-const uiStyle = document.createElement('style');
-uiStyle.textContent = `
-  #sidebar, #main {
-    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .slide-out {
-    transform: translateX(-100%) !important;
-  }
-  .slide-in {
-    transform: translateX(0) !important;
-  }
-  #empty-state, #chat-header, #messages-wrap, #compose, #writer-profile, #room-profile {
-    transition: opacity 0.25s ease, transform 0.25s ease;
-  }
-  #empty-state.hidden, #chat-header.hidden, #messages-wrap.hidden, 
-  #compose.hidden, #writer-profile.hidden, #room-profile.hidden {
-    opacity: 0;
-    transform: translateX(20px);
-    pointer-events: none;
-  }
-  .panel-fade {
-    animation: panelFadeIn 0.3s ease;
-  }
-  @keyframes panelFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  #chats-panel, #writers-panel, #rooms-panel {
-    transition: opacity 0.2s ease;
-  }
-`;
-document.head.appendChild(uiStyle);
-
 // ── NAVIGATION STATE MACHINE ──
 export function isMobile() { return window.innerWidth <= 768; }
 
@@ -68,24 +34,14 @@ export function pushNav(state) {
 }
 
 export function showSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  const main = document.getElementById('main');
-  sidebar.classList.remove('slide-out');
-  main.classList.remove('slide-in');
-  // Ensure smooth transition
-  sidebar.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-  main.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+  document.getElementById('sidebar').classList.remove('slide-out');
+  document.getElementById('main').classList.remove('slide-in');
 }
 
 export function showMain() {
   if(!isMobile()) return;
-  const sidebar = document.getElementById('sidebar');
-  const main = document.getElementById('main');
-  sidebar.classList.add('slide-out');
-  main.classList.add('slide-in');
-  // Ensure smooth transition
-  sidebar.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-  main.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+  document.getElementById('sidebar').classList.add('slide-out');
+  document.getElementById('main').classList.add('slide-in');
 }
 
 export function setMainState(state) {
@@ -95,76 +51,31 @@ export function setMainState(state) {
   const composeEl = document.getElementById('compose');
   const profileEl = document.getElementById('writer-profile');
   const roomProfEl= document.getElementById('room-profile');
-  
-  // Hide all first with fade
   emptyEl.style.display   = 'none';
   headerEl.classList.remove('visible');
   msgsEl.classList.remove('visible');
   composeEl.style.display = 'none';
   profileEl.classList.remove('visible');
   roomProfEl.classList.remove('visible');
-  
-  // Then show the requested state
-  if(state === 'empty') { 
-    emptyEl.style.display = ''; 
-    emptyEl.classList.add('panel-fade');
-  }
-  else if(state === 'chat') { 
-    headerEl.classList.add('visible'); 
-    msgsEl.classList.add('visible'); 
-    composeEl.style.display='flex';
-    // Add subtle animation
-    msgsEl.classList.add('panel-fade');
-  }
-  else if(state === 'profile') { 
-    profileEl.classList.add('visible'); 
-    profileEl.classList.add('panel-fade');
-  }
-  else if(state === 'room-profile') { 
-    roomProfEl.classList.add('visible'); 
-    roomProfEl.classList.add('panel-fade');
-  }
+  if(state === 'empty')        { emptyEl.style.display = ''; }
+  else if(state === 'chat')    { headerEl.classList.add('visible'); msgsEl.classList.add('visible'); composeEl.style.display='flex'; }
+  else if(state === 'profile') { profileEl.classList.add('visible'); }
+  else if(state === 'room-profile') { roomProfEl.classList.add('visible'); }
 }
 
 // ── TAB SWITCH ──
 window.switchTab = function(tab, el) {
   document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
   if(el) el.classList.add('active');
-  
-  // Fade out current panel
-  const panels = ['chats-panel', 'writers-panel', 'rooms-panel'];
-  panels.forEach(p => {
-    const panel = document.getElementById(p);
-    panel.style.opacity = '0';
-  });
-  
-  // Switch and fade in new panel
-  setTimeout(() => {
-    document.getElementById('chats-panel').style.display   = tab==='chats'   ? 'flex' : 'none';
-    document.getElementById('writers-panel').style.display = tab==='writers' ? 'flex' : 'none';
-    document.getElementById('rooms-panel').style.display   = tab==='rooms'   ? 'flex' : 'none';
-    
-    // Fade in new panel
-    const newPanel = document.getElementById(tab + '-panel');
-    if(newPanel) {
-      newPanel.style.opacity = '1';
-      newPanel.classList.add('panel-fade');
-    }
-    
-    if(isMobile()) { showSidebar(); navStack.length = 0; }
-    S.currentChatId = null;
-    setMainState('empty');
-    if(tab==='writers') loadWriters();
-    if(tab==='rooms')   loadRoomsBrowse();
-  }, 150);
+  document.getElementById('chats-panel').style.display   = tab==='chats'   ? 'flex' : 'none';
+  document.getElementById('writers-panel').style.display = tab==='writers' ? 'flex' : 'none';
+  document.getElementById('rooms-panel').style.display   = tab==='rooms'   ? 'flex' : 'none';
+  if(isMobile()) { showSidebar(); navStack.length = 0; }
+  S.currentChatId = null;
+  setMainState('empty');
+  if(tab==='writers') loadWriters();
+  if(tab==='rooms')   loadRoomsBrowse();
 };
-
-// Initialize panel opacities
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('chats-panel').style.opacity = '1';
-  document.getElementById('writers-panel').style.opacity = '0';
-  document.getElementById('rooms-panel').style.opacity = '0';
-});
 
 // ── REVEAL CHAT (called by openChat in chat.js) ──
 export function revealChat(chatId, type, meta) {
