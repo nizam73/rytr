@@ -195,7 +195,7 @@ function renderChatItem(docSnap, type) {
     name = data.participantNames?.[otherId] || 'User'; sub = ''; initial = (name[0]||'U').toUpperCase();
   }
   item.innerHTML = `
-    <div class="chat-avatar">${initial}</div>
+    <div class="chat-avi">${initial}</div>
     <div class="chat-info">
       <div class="chat-name">${name}${type==='room'?'<span class="room-tag">Room</span>':''}</div>
       ${sub}
@@ -205,7 +205,14 @@ function renderChatItem(docSnap, type) {
         <span class="chat-time">${time}</span>
       </div>
     </div>`;
-  item.onclick = () => openChat(id, type, { name, sub: type==='room'?`by ${data.creatorName||'Writer'}`:'' });
+  item.onclick = () => {
+    // Add click feedback
+    item.style.transform = 'scale(0.98)';
+    setTimeout(() => {
+      item.style.transform = '';
+      openChat(id, type, { name, sub: type==='room'?`by ${data.creatorName||'Writer'}`:'' });
+    }, 100);
+  };
   list.appendChild(item);
   if(!S.chatListeners[id]) { S.chatListeners[id] = true; listenUnreadForChat(id, type); }
 }
@@ -558,6 +565,12 @@ window.sendMessage = async function() {
     createdAt:   serverTimestamp()
   };
   textarea.value = ''; textarea.style.height = 'auto';
+  
+  // Visual feedback - animate send button
+  const sendBtn = document.getElementById('send-btn');
+  sendBtn.style.transform = 'scale(0.9)';
+  setTimeout(() => sendBtn.style.transform = '', 150);
+  
   try {
     await addDoc(collection(db, colPath), msgData);
     const topRef = doc(db, S.currentChatType==='room'?'rooms':'chats', S.currentChatId);
@@ -568,8 +581,51 @@ window.sendMessage = async function() {
       document.getElementById('lock-btn').textContent = '🔓';
       document.getElementById('price-select').classList.remove('visible');
     }
-  } catch(e) { toast('Failed to send. Try again.'); }
+  } catch(e) { 
+    toast('Failed to send. Try again.'); 
+    // Shake animation on error
+    sendBtn.style.animation = 'shake 0.4s ease';
+    setTimeout(() => sendBtn.style.animation = '', 400);
+  }
 };
+
+// Add shake animation for errors
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .msg-row { animation: slideUp 0.25s ease forwards; }
+  .chat-item { transition: all 0.2s ease; }
+  .chat-item:hover { transform: translateX(4px); }
+  .writer-item, .room-browse-item, .wp-room-card { transition: all 0.2s ease; }
+  .writer-item:hover, .room-browse-item:hover, .wp-room-card:hover { transform: translateY(-2px); }
+  .modal { animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(0.9) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  #toast { animation: toastIn 0.3s ease forwards; }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+`;
+document.head.appendChild(style);
 
 // ── LOCK TOGGLE ──
 window.toggleLock = function() {
@@ -579,8 +635,29 @@ window.toggleLock = function() {
   const sel = document.getElementById('price-select');
   btn.classList.toggle('locked', S.isLocked);
   btn.textContent = S.isLocked ? '🔒' : '🔓';
-  sel.classList.toggle('visible', S.isLocked);
+  
+  // Animate the button
+  btn.style.transform = 'scale(1.1)';
+  setTimeout(() => btn.style.transform = '', 200);
+  
+  // Slide price select in/out
+  if(S.isLocked) {
+    sel.classList.add('visible');
+    sel.style.animation = 'slideIn 0.2s ease';
+  } else {
+    sel.classList.remove('visible');
+  }
 };
+
+// Add lock animation style
+const lockStyle = document.createElement('style');
+lockStyle.textContent = `
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+`;
+document.head.appendChild(lockStyle);
 
 // ── UNLOCK ──
 window.openUnlock = function(msgId) {
@@ -598,7 +675,14 @@ window.openUnlock = function(msgId) {
   document.getElementById('ul-warn').style.display    = after < 0 ? '' : 'none';
   const btn = document.getElementById('ul-confirm');
   btn.disabled = after < 0; btn.textContent = after < 0 ? 'Not enough Points' : 'Unlock 🔓';
-  document.getElementById('unlock-overlay').classList.add('show');
+  
+  // Animate overlay entrance
+  const overlay = document.getElementById('unlock-overlay');
+  overlay.classList.add('show');
+  const modal = overlay.querySelector('.modal');
+  modal.style.animation = 'none';
+  modal.offsetHeight; // Trigger reflow
+  modal.style.animation = 'modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
 };
 
 window.confirmUnlock = async function() {
@@ -606,6 +690,10 @@ window.confirmUnlock = async function() {
   const { msgId, colPath, price, senderId } = S.pendingUnlockData;
   const btn = document.getElementById('ul-confirm');
   btn.disabled = true; btn.textContent = 'Processing...';
+  
+  // Add processing animation
+  btn.style.animation = 'pulse 1s ease infinite';
+  
   try {
     await runTransaction(db, async tx => {
       const readerRef  = doc(db,'users',S.currentUser.uid);
@@ -624,12 +712,15 @@ window.confirmUnlock = async function() {
     });
     window.closeOverlay('unlock-overlay');
     toast('🔓 Unlocked!');
+    
+    // Animate the revealed message
     const msgSnap = await getDoc(doc(db,colPath,msgId));
     const d = msgSnap.data();
-
-    // Update main chat row if visible
     const row = document.getElementById('msg-'+msgId);
     if(row) {
+      row.style.animation = 'none';
+      row.offsetHeight; // Trigger reflow
+      row.style.animation = 'revealIn 0.4s ease forwards';
       row.innerHTML = `
         <div class="msg-avi">${(d.senderName||'U')[0].toUpperCase()}</div>
         <div class="revealed-card">
@@ -653,6 +744,7 @@ window.confirmUnlock = async function() {
       }
     }
   } catch(e) {
+    btn.style.animation = '';
     btn.disabled = false; btn.textContent = 'Unlock 🔓';
     if(e.message==='already_unlocked') { toast('Already unlocked!'); window.closeOverlay('unlock-overlay'); }
     else if(e.message==='insufficient') toast('Not enough Points!');
@@ -660,14 +752,53 @@ window.confirmUnlock = async function() {
   }
 };
 
+// Add reveal animation
+const revealStyle = document.createElement('style');
+revealStyle.textContent = `
+  @keyframes revealIn {
+    0% { opacity: 0; transform: scale(0.95); }
+    50% { transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+`;
+document.head.appendChild(revealStyle);
+
 // ── ADD POINTS ──
-window.openAddPoints = function() { S.selectedPtsAmt=0; document.querySelectorAll('.pt-opt').forEach(o=>o.classList.remove('sel')); document.getElementById('addpoints-overlay').classList.add('show'); };
-window.selectPts = function(el,amt) { document.querySelectorAll('.pt-opt').forEach(o=>o.classList.remove('sel')); el.classList.add('sel'); S.selectedPtsAmt=amt; };
+window.openAddPoints = function() { 
+  S.selectedPtsAmt=0; 
+  document.querySelectorAll('.pt-opt').forEach(o=>o.classList.remove('sel')); 
+  const overlay = document.getElementById('addpoints-overlay');
+  overlay.classList.add('show');
+  // Animate points options
+  const options = overlay.querySelectorAll('.pt-opt');
+  options.forEach((opt, i) => {
+    opt.style.opacity = '0';
+    opt.style.transform = 'translateY(10px)';
+    setTimeout(() => {
+      opt.style.transition = 'all 0.2s ease';
+      opt.style.opacity = '1';
+      opt.style.transform = 'translateY(0)';
+    }, i * 50);
+  });
+};
+window.selectPts = function(el,amt) { 
+  document.querySelectorAll('.pt-opt').forEach(o=>o.classList.remove('sel')); 
+  el.classList.add('sel'); 
+  S.selectedPtsAmt=amt; 
+  // Click feedback
+  el.style.transform = 'scale(0.95)';
+  setTimeout(() => el.style.transform = '', 100);
+};
 window.confirmAddPoints = async function() {
   if(!S.selectedPtsAmt) { toast('Pick a package first'); return; }
   await updateDoc(doc(db,'users',S.currentUser.uid), { balance: increment(S.selectedPtsAmt) });
   window.closeOverlay('addpoints-overlay');
   toast(`✅ ${S.selectedPtsAmt} Points added!`);
+  
+  // Animate balance update
+  const balanceEl = document.getElementById('balance-val');
+  balanceEl.style.animation = 'pulse 0.3s ease';
+  setTimeout(() => balanceEl.style.animation = '', 300);
 };
 
 // ── FIND WRITERS ──
