@@ -263,6 +263,41 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
   border-radius:10px;padding:10px 14px;font-size:12px;color:#795548
 }
 
+/* REPORT & FEEDBACK CARDS */
+.report-card,.feedback-card{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 20px;margin-bottom:10px;
+  box-shadow:var(--shadow-sm);transition:all var(--t)
+}
+.report-card:hover,.feedback-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.rfc-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.rfc-user{display:flex;align-items:center;gap:10px}
+.rfc-avi{
+  width:38px;height:38px;border-radius:50%;
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid));
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;flex-shrink:0
+}
+.rfc-name{font-size:14px;font-weight:600;color:var(--text)}
+.rfc-email{font-size:12px;color:var(--muted);margin-top:1px}
+.rfc-meta{font-size:11px;color:#bbb;white-space:nowrap;flex-shrink:0}
+.rfc-body{font-size:13px;color:var(--text);line-height:1.6;padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:10px;word-break:break-word}
+.rfc-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.rfc-tag{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.rfc-tag.inappropriate{background:#FFF3E0;color:#E65100}
+.rfc-tag.harmful{background:#FFEBEE;color:var(--red)}
+.rfc-tag.writer{background:var(--blue-light);color:var(--blue)}
+.rfc-footer{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rfc-status{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.rfc-status.pending{color:#F57F17}
+.rfc-status.reviewed{color:var(--green)}
+.btn-mark-reviewed{
+  background:none;border:1.5px solid var(--border);color:var(--muted);
+  padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;
+  font-family:'Roboto',sans-serif;cursor:pointer;transition:all var(--t)
+}
+.btn-mark-reviewed:hover{border-color:var(--green);color:var(--green)}
+
 /* TOAST */
 #toast{
   position:fixed;bottom:28px;left:50%;
@@ -357,6 +392,16 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
       <div class="nav-item" onclick="showPanel('settings',this)">
         <span class="ni-icon">⚙️</span>
         <span class="nav-label">Settings</span>
+      </div>
+      <div class="nav-item" onclick="showPanel('reports',this)">
+        <span class="ni-icon">🚩</span>
+        <span class="nav-label">Reports</span>
+        <span class="nav-badge" id="reports-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" onclick="showPanel('feedback',this)">
+        <span class="ni-icon">💬</span>
+        <span class="nav-label">Feedback</span>
+        <span class="nav-badge" id="feedback-badge" style="display:none">0</span>
       </div>
     </div>
 
@@ -565,6 +610,31 @@ html,body{height:100%;background:var(--bg);font-family:'Roboto',sans-serif;color
       </div>
 
     </div>
+
+    <!-- Reports panel -->
+    <div class="panel" id="panel-reports">
+      <div id="reports-list"><div class="empty"><span class="em-icon">⏳</span>Loading...</div></div>
+    </div>
+
+    <!-- Feedback panel -->
+    <div class="panel" id="panel-feedback">
+      <!-- Feedback email setting card -->
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin-bottom:18px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Feedback Contact Email</div>
+          <div style="font-size:12px;color:var(--muted)">Shown to users in the feedback form</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <input type="email" id="feedback-email-input" value="ahmed.nizam73@gmail.com"
+            style="padding:9px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:Roboto,sans-serif;outline:none;min-width:240px;color:var(--text)"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"/>
+          <button onclick="saveFeedbackEmail()" style="background:var(--blue);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;font-family:Roboto,sans-serif;cursor:pointer">Save</button>
+          <button onclick="resetFeedbackEmail()" style="background:none;border:1.5px solid var(--border);color:var(--muted);padding:9px 14px;border-radius:8px;font-size:12px;font-weight:600;font-family:Roboto,sans-serif;cursor:pointer" title="Reset to default">↺ Reset</button>
+        </div>
+      </div>
+      <div id="feedback-list"><div class="empty"><span class="em-icon">⏳</span>Loading...</div></div>
+    </div>
+
   </div>
 </div>
 
@@ -577,7 +647,7 @@ import { getAuth, onAuthStateChanged, signOut,
 import { getFirestore, collection, doc,
          getDocs, updateDoc, onSnapshot,
          query, where, orderBy,
-         getDoc, deleteDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+         getDoc, deleteDoc, setDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey:"AIzaSyCMVpe1C0YNP1J_o0k22Ld_l5v2BzFP2xA",
@@ -606,6 +676,8 @@ onAuthStateChanged(auth, async user => {
   document.getElementById('loading-screen').style.display='none';
   loadPending();
   listenPendingCount();
+  listenReportsBadge();
+  listenFeedbackBadge();
 });
 
 // Expose globals
@@ -615,6 +687,9 @@ window.approveWriter = approveWriter;
 window.rejectWriter  = rejectWriter;
 window.blockUser     = blockUser;
 window.unblockUser   = unblockUser;
+window.markReportReviewed = markReportReviewed;
+window.saveFeedbackEmail  = saveFeedbackEmail;
+window.resetFeedbackEmail = resetFeedbackEmail;
 
 function showPanel(name, el) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -627,7 +702,9 @@ function showPanel(name, el) {
     users:    ['All Users','Manage reader accounts'],
     writers:  ['All Writers','Manage writer accounts'],
     overview: ['Overview','Platform statistics'],
-    settings: ['Platform Settings','Customize colors, branding, and messages']
+    settings: ['Platform Settings','Customize colors, branding, and messages'],
+    reports:  ['Reports','User-submitted message reports'],
+    feedback: ['Feedback','User-submitted feedback']
   };
   document.getElementById('page-title').textContent = titles[name][0];
   document.getElementById('page-sub').textContent   = titles[name][1];
@@ -635,12 +712,32 @@ function showPanel(name, el) {
   if(name==='users')    loadUsers();
   if(name==='writers')  loadWriters();
   if(name==='overview') loadOverview();
+  if(name==='reports')  loadReports();
+  if(name==='feedback') loadFeedback();
 }
 
 function listenPendingCount() {
   const q = query(collection(db,'users'), where('role','==','writer'), where('approved','==',false));
   onSnapshot(q, snap => {
     document.getElementById('pending-badge').textContent = snap.size;
+  });
+}
+
+function listenReportsBadge() {
+  const q = query(collection(db,'reports'), where('status','==','pending'));
+  onSnapshot(q, snap => {
+    const badge = document.getElementById('reports-badge');
+    if(snap.size > 0) { badge.textContent = snap.size; badge.style.display=''; }
+    else badge.style.display='none';
+  });
+}
+
+function listenFeedbackBadge() {
+  const q = query(collection(db,'feedback'), where('status','==','new'));
+  onSnapshot(q, snap => {
+    const badge = document.getElementById('feedback-badge');
+    if(snap.size > 0) { badge.textContent = snap.size; badge.style.display=''; }
+    else badge.style.display='none';
   });
 }
 
@@ -767,6 +864,122 @@ async function unblockUser(uid) {
   await updateDoc(doc(db,'users',uid), { blocked:false });
   toast('User unblocked.');
   document.getElementById('card-'+uid)?.remove();
+}
+
+// ── REPORTS ──
+async function loadReports() {
+  const list = document.getElementById('reports-list');
+  list.innerHTML = '<div class="empty"><span class="em-icon">⏳</span>Loading...</div>';
+  try {
+    const q = query(collection(db,'reports'), orderBy('reportedAt','desc'));
+    const snap = await getDocs(q);
+    list.innerHTML = '';
+    if(snap.empty) { list.innerHTML='<div class="empty"><span class="em-icon">✅</span>No reports yet.</div>'; return; }
+    snap.forEach(d => {
+      const r = d.data();
+      const date = r.reportedAt?.toDate ? r.reportedAt.toDate().toLocaleString() : '—';
+      const tags = [];
+      if(r.reasons?.inappropriate) tags.push('<span class="rfc-tag inappropriate">Inappropriate</span>');
+      if(r.reasons?.harmful)       tags.push('<span class="rfc-tag harmful">Harmful</span>');
+      const card = document.createElement('div');
+      card.className = 'report-card';
+      card.id = 'rcard-'+d.id;
+      card.innerHTML = `
+        <div class="rfc-header">
+          <div class="rfc-user">
+            <div class="rfc-avi">${(r.reporterName||'U')[0].toUpperCase()}</div>
+            <div>
+              <div class="rfc-name">Reporter: ${esc(r.reporterName||'Unknown')}</div>
+              <div class="rfc-email">${esc(r.reporterEmail||'')}</div>
+            </div>
+          </div>
+          <div class="rfc-meta">${date}</div>
+        </div>
+        ${r.writerName ? `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <span class="rfc-tag writer">Writer: ${esc(r.writerName)}</span>
+          <span style="font-size:11px;color:var(--muted)">· ${r.chatType||''} chat</span>
+        </div>` : ''}
+        <div class="rfc-tags">${tags.join('')}</div>
+        <div class="rfc-footer">
+          <span class="rfc-status ${r.status||'pending'}">${r.status==='reviewed'?'✓ Reviewed':'● Pending'}</span>
+          ${r.status!=='reviewed' ? `<button class="btn-mark-reviewed" onclick="markReportReviewed('${d.id}')">Mark Reviewed</button>` : ''}
+        </div>`;
+      list.appendChild(card);
+    });
+  } catch(e) { list.innerHTML=`<div class="empty" style="color:var(--red)">Error: ${e.message}</div>`; }
+}
+
+async function markReportReviewed(reportId) {
+  try {
+    await updateDoc(doc(db,'reports',reportId), { status:'reviewed', reviewedAt: serverTimestamp() });
+    toast('✅ Marked as reviewed.');
+    const card = document.getElementById('rcard-'+reportId);
+    if(card) {
+      const statusEl = card.querySelector('.rfc-status');
+      if(statusEl) { statusEl.textContent='✓ Reviewed'; statusEl.className='rfc-status reviewed'; }
+      card.querySelector('.btn-mark-reviewed')?.remove();
+    }
+  } catch(e) { toast('Error: '+e.message); }
+}
+
+// ── FEEDBACK ──
+const DEFAULT_FEEDBACK_EMAIL = 'ahmed.nizam73@gmail.com';
+
+async function loadFeedback() {
+  const list = document.getElementById('feedback-list');
+  list.innerHTML = '<div class="empty"><span class="em-icon">⏳</span>Loading...</div>';
+  // Load current feedback email into input
+  try {
+    const snap = await getDoc(doc(db,'settings','platform'));
+    const email = snap.exists() && snap.data().feedbackEmail ? snap.data().feedbackEmail : DEFAULT_FEEDBACK_EMAIL;
+    document.getElementById('feedback-email-input').value = email;
+  } catch(e) { /* non-fatal */ }
+  try {
+    const q = query(collection(db,'feedback'), orderBy('submittedAt','desc'));
+    const snap = await getDocs(q);
+    list.innerHTML = '';
+    if(snap.empty) { list.innerHTML='<div class="empty"><span class="em-icon">💬</span>No feedback yet.</div>'; return; }
+    snap.forEach(d => {
+      const f = d.data();
+      const date = f.submittedAt?.toDate ? f.submittedAt.toDate().toLocaleString() : '—';
+      const card = document.createElement('div');
+      card.className = 'feedback-card';
+      card.id = 'fcard-'+d.id;
+      card.innerHTML = `
+        <div class="rfc-header">
+          <div class="rfc-user">
+            <div class="rfc-avi">${(f.userName||'U')[0].toUpperCase()}</div>
+            <div>
+              <div class="rfc-name">${esc(f.userName||'Unknown')}</div>
+              <div class="rfc-email">${esc(f.userEmail||'')}</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <div class="rfc-meta">${date}</div>
+            ${f.status==='new' ? '<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:2px 8px;border-radius:20px">NEW</span>' : ''}
+          </div>
+        </div>
+        <div class="rfc-body">${esc(f.text||'')}</div>`;
+      list.appendChild(card);
+      // Mark as seen
+      if(f.status==='new') updateDoc(doc(db,'feedback',d.id),{status:'seen'}).catch(()=>{});
+    });
+  } catch(e) { list.innerHTML=`<div class="empty" style="color:var(--red)">Error: ${e.message}</div>`; }
+}
+
+async function saveFeedbackEmail() {
+  const email = document.getElementById('feedback-email-input').value.trim();
+  if(!email || !email.includes('@')) { toast('Enter a valid email address.'); return; }
+  try {
+    await setDoc(doc(db,'settings','platform'), { feedbackEmail: email }, { merge: true });
+    toast('✅ Feedback email saved.');
+  } catch(e) { toast('Error: '+e.message); }
+}
+
+async function resetFeedbackEmail() {
+  document.getElementById('feedback-email-input').value = DEFAULT_FEEDBACK_EMAIL;
+  await saveFeedbackEmail();
+  toast('↺ Reset to default email.');
 }
 
 function doLogout() { signOut(auth).then(()=>window.location.href='index.html'); }
