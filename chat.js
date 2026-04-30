@@ -464,6 +464,8 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
           <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
         </div>
       </div>`;
+
+  } else if(isMe) {
     row.innerHTML = `
       <div class="own-locked">
         <div class="own-locked-top">
@@ -501,7 +503,8 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
         <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
           <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
         </div>
-      </div>`; `unlocks/${S.currentUser.uid}_${msgId}`);
+      </div>`;
+    const unlockRef = doc(db, `unlocks/${S.currentUser.uid}_${msgId}`);
     const unlockSnap = await getDoc(unlockRef);
     if(S.currentChatId !== (colPath.split('/')[1])) return;
     if(unlockSnap.exists()) {
