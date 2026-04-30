@@ -175,7 +175,7 @@ function sortChatList() {
   items.forEach(i => list.appendChild(i));
 }
 
-function renderChatItem(docSnap, type) {
+async function renderChatItem(docSnap, type) {
   const data = docSnap.data();
   const id   = docSnap.id;
   const list = document.getElementById('chat-list');
@@ -192,6 +192,14 @@ function renderChatItem(docSnap, type) {
     name = data.name || 'Room'; sub = `<span class="by-writer">by ${data.creatorName||'Writer'}</span>`; initial = (name[0]||'R').toUpperCase();
   } else {
     const otherId = (data.participants||[]).find(p => p !== S.currentUser.uid);
+    // If the other user's account has been deleted, remove the chat item and bail
+    if(otherId) {
+      const otherSnap = await getDoc(doc(db, 'users', otherId));
+      if(!otherSnap.exists()) {
+        document.getElementById('ci-'+id)?.remove();
+        return;
+      }
+    }
     name = data.participantNames?.[otherId] || 'User'; sub = ''; initial = (name[0]||'U').toUpperCase();
   }
   item.innerHTML = `
