@@ -175,10 +175,23 @@ function sortChatList() {
   items.forEach(i => list.appendChild(i));
 }
 
-function renderChatItem(docSnap, type) {
+async function renderChatItem(docSnap, type) {
   const data = docSnap.data();
   const id   = docSnap.id;
   const list = document.getElementById('chat-list');
+
+  // For DMs: if the other user's account has been deleted, remove the item and bail
+  if(type === 'dm') {
+    const otherId = (data.participants||[]).find(p => p !== S.currentUser.uid);
+    if(otherId) {
+      const otherSnap = await getDoc(doc(db, 'users', otherId));
+      if(!otherSnap.exists()) {
+        document.getElementById('ci-'+id)?.remove();
+        return;
+      }
+    }
+  }
+
   document.getElementById('ci-'+id)?.remove();
   const item = document.createElement('div');
   item.className = 'chat-item' + (id === S.currentChatId ? ' active' : '');
@@ -446,13 +459,11 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
         <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
       </div>
       <div class="msg-more-wrap">
-        <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')">⋯</button>
+        <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
         <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
           <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
         </div>
       </div>`;
-
-  } else if(isMe) {
     row.innerHTML = `
       <div class="own-locked">
         <div class="own-locked-top">
@@ -486,12 +497,11 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
         </div>
       </div>
       <div class="msg-more-wrap">
-        <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')">⋯</button>
+        <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
         <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
           <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
         </div>
-      </div>`;
-    const unlockRef  = doc(db, `unlocks/${S.currentUser.uid}_${msgId}`);
+      </div>`; `unlocks/${S.currentUser.uid}_${msgId}`);
     const unlockSnap = await getDoc(unlockRef);
     if(S.currentChatId !== (colPath.split('/')[1])) return;
     if(unlockSnap.exists()) {
@@ -503,6 +513,12 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
             <div style="font-size:14px;line-height:1.6">${esc(data.text)}</div>
             <div class="bubble-time">${time}</div>
             <div class="revealed-badge">✓ Unlocked · ${data.price} pts spent</div>
+          </div>
+        </div>
+        <div class="msg-more-wrap">
+          <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
+          <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
+            <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
           </div>
         </div>`;
     }
