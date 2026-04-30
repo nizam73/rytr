@@ -175,7 +175,7 @@ function sortChatList() {
   items.forEach(i => list.appendChild(i));
 }
 
-async function renderChatItem(docSnap, type) {
+function renderChatItem(docSnap, type) {
   const data = docSnap.data();
   const id   = docSnap.id;
   const list = document.getElementById('chat-list');
@@ -192,14 +192,6 @@ async function renderChatItem(docSnap, type) {
     name = data.name || 'Room'; sub = `<span class="by-writer">by ${data.creatorName||'Writer'}</span>`; initial = (name[0]||'R').toUpperCase();
   } else {
     const otherId = (data.participants||[]).find(p => p !== S.currentUser.uid);
-    // If the other user's account has been deleted, remove the chat item and bail
-    if(otherId) {
-      const otherSnap = await getDoc(doc(db, 'users', otherId));
-      if(!otherSnap.exists()) {
-        document.getElementById('ci-'+id)?.remove();
-        return;
-      }
-    }
     name = data.participantNames?.[otherId] || 'User'; sub = ''; initial = (name[0]||'U').toUpperCase();
   }
   item.innerHTML = `
@@ -452,6 +444,12 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
         ${!isMe && S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
         <div>${linkify(esc(data.text))}</div>
         <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
+      </div>
+      <div class="msg-more-wrap">
+        <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')">⋯</button>
+        <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
+          <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
+        </div>
       </div>`;
 
   } else if(isMe) {
@@ -485,6 +483,12 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
         <div class="unlock-bar" onclick="window.openUnlock('${msgId}')">
           <span class="ul-text">Unlock &amp; Read</span>
           <span class="ul-price">${data.price} Points</span>
+        </div>
+      </div>
+      <div class="msg-more-wrap">
+        <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')">⋯</button>
+        <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
+          <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
         </div>
       </div>`;
     const unlockRef  = doc(db, `unlocks/${S.currentUser.uid}_${msgId}`);
@@ -1188,3 +1192,89 @@ window.saveSettings = async function() {
 window.doLogout = async function() { await signOut(auth); window.location.href='index.html'; };
 window.closeOverlay = function(id) { document.getElementById(id).classList.remove('show'); };
 window.toast = toast;
+
+// ── MORE MENU (3-dot per bubble) ──
+let _openMsgMenu = null;
+window.toggleMsgMenu = function(e, msgId) {
+  e.stopPropagation();
+  const menu = document.getElementById('mmenu-'+msgId);
+  if(!menu) return;
+  const isOpen = menu.style.display !== 'none';
+  // Close any open menu first
+  if(_openMsgMenu && _openMsgMenu !== menu) _openMsgMenu.style.display = 'none';
+  menu.style.display = isOpen ? 'none' : '';
+  _openMsgMenu = isOpen ? null : menu;
+};
+document.addEventListener('click', () => {
+  if(_openMsgMenu) { _openMsgMenu.style.display = 'none'; _openMsgMenu = null; }
+});
+
+// ── REPORT ──
+let _pendingReport = null;
+window.openReport = function(msgId, senderName) {
+  if(_openMsgMenu) { _openMsgMenu.style.display='none'; _openMsgMenu=null; }
+  _pendingReport = { msgId, senderName };
+  document.getElementById('report-chk-inappropriate').checked = false;
+  document.getElementById('report-chk-harmful').checked = false;
+  document.getElementById('report-overlay').classList.add('show');
+};
+window.submitReport = async function() {
+  const inappropriate = document.getElementById('report-chk-inappropriate').checked;
+  const harmful       = document.getElementById('report-chk-harmful').checked;
+  if(!inappropriate && !harmful) { toast('Please select at least one reason.'); return; }
+  if(!_pendingReport) return;
+  const btn = document.getElementById('report-submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  try {
+    await addDoc(collection(db,'reports'), {
+      msgId:         _pendingReport.msgId,
+      writerName:    _pendingReport.senderName,
+      chatId:        S.currentChatId,
+      chatType:      S.currentChatType,
+      reporterId:    S.currentUser.uid,
+      reporterName:  S.currentUserData.displayName || S.currentUser.displayName || 'User',
+      reporterEmail: S.currentUser.email || '',
+      reasons:       { inappropriate, harmful },
+      reportedAt:    serverTimestamp(),
+      status:        'pending'
+    });
+    window.closeOverlay('report-overlay');
+    toast('✅ Report submitted. Thank you.');
+    _pendingReport = null;
+  } catch(e) { toast('Failed to submit report: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='Submit Report'; }
+};
+
+// ── FEEDBACK ──
+window.openFeedback = async function() {
+  // Load current feedback email from Firestore settings
+  try {
+    const snap = await getDoc(doc(db,'settings','platform'));
+    const email = snap.exists() && snap.data().feedbackEmail
+      ? snap.data().feedbackEmail
+      : 'ahmed.nizam73@gmail.com';
+    const link = document.getElementById('feedback-email-link');
+    if(link) { link.textContent = email; link.href = 'mailto:'+email; }
+  } catch(e) { /* non-fatal */ }
+  document.getElementById('feedback-text').value = '';
+  document.getElementById('feedback-overlay').classList.add('show');
+};
+window.submitFeedback = async function() {
+  const text = document.getElementById('feedback-text').value.trim();
+  if(!text) { toast('Please write something before submitting.'); return; }
+  const btn = document.querySelector('#feedback-overlay .modal-confirm');
+  btn.disabled=true; btn.textContent='Submitting...';
+  try {
+    await addDoc(collection(db,'feedback'), {
+      text,
+      userId:       S.currentUser.uid,
+      userName:     S.currentUserData.displayName || S.currentUser.displayName || 'User',
+      userEmail:    S.currentUser.email || '',
+      submittedAt:  serverTimestamp(),
+      status:       'new'
+    });
+    window.closeOverlay('feedback-overlay');
+    toast('✅ Feedback sent. Thank you!');
+  } catch(e) { toast('Failed to submit feedback: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='Submit'; }
+};
