@@ -38,6 +38,7 @@
         <div class="settings-item" onclick="openSettings('mobile')"><span class="si-icon">📱</span> Mobile Number</div>
         <div class="settings-item" id="bio-item" style="display:none" onclick="openSettings('bio')"><span class="si-icon">📝</span> Edit Bio</div>
         <div class="settings-item" id="create-room-item" style="display:none" onclick="closeSbMenu();document.getElementById('room-overlay').classList.add('show')"><span class="si-icon">➕</span> Create Room</div>
+        <div class="settings-item" onclick="closeSbMenu();openFeedback()"><span class="si-icon">💬</span> Feedback</div>
         <div class="settings-item danger" onclick="doLogout()"><span class="si-icon">🚪</span> Logout</div>
       </div>
       <div id="sb-balance-row">
@@ -87,32 +88,46 @@
 
     <!-- Writer Profile Panel -->
     <div id="writer-profile">
-      <div id="wp-header" style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0">
-        <button id="wp-back-btn" onclick="closeWriterProfile()">&#8592;</button>
-        <div id="wp-avi" style="width:42px;height:42px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0"></div>
-        <div>
-          <div id="wp-name" style="font-size:16px;font-weight:700;color:var(--text)"></div>
-          <div id="wp-email" style="font-size:12px;color:var(--muted)"></div>
+      <!-- Header -->
+      <div class="rp-header">
+        <button id="wp-back-btn" class="rp-back-btn" onclick="closeWriterProfile()">&#8592;</button>
+        <div id="wp-avi" class="wp-avi"></div>
+        <div style="flex:1;min-width:0">
+          <div id="wp-name" class="rp-name"></div>
+          <div id="wp-email" class="rp-sub"></div>
         </div>
-        <button id="wp-chat-btn" style="margin-left:auto;background:var(--blue);color:#fff;border:none;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;font-family:Roboto,sans-serif;cursor:pointer">Chat Now</button>
+        <button id="wp-chat-btn" class="rp-join-btn">Chat Now</button>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:20px">
-        <div id="wp-bio-box" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px">
-          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">About</div>
-          <div id="wp-bio" style="font-size:14px;color:var(--text);line-height:1.7"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">
-            <div id="wp-unlocks" style="font-size:24px;font-weight:700;color:var(--blue)">—</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:3px">Points Earned</div>
+
+      <!-- Scrollable body -->
+      <div class="rp-scroll">
+        <div class="rp-content">
+
+          <!-- Stat cards -->
+          <div class="rp-info-grid" style="grid-template-columns:repeat(2,1fr)">
+            <div class="rp-stat-card">
+              <div class="rp-stat-val" id="wp-unlocks">—</div>
+              <div class="rp-stat-lbl">Points Earned</div>
+            </div>
+            <div class="rp-stat-card">
+              <div class="rp-stat-val" id="wp-rooms-count">—</div>
+              <div class="rp-stat-lbl">Rooms</div>
+            </div>
           </div>
-          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center">
-            <div id="wp-rooms-count" style="font-size:24px;font-weight:700;color:var(--blue)">—</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:3px">Rooms</div>
+
+          <!-- Bio -->
+          <div style="padding:0 16px 12px">
+            <div class="rp-section-label">About</div>
+            <div class="rp-bio-box"><div id="wp-bio"></div></div>
           </div>
+
+          <!-- Rooms section -->
+          <div style="padding:0 16px 12px">
+            <div class="rp-section-label" style="margin-bottom:10px">Rooms</div>
+            <div id="wp-rooms-list"></div>
+          </div>
+
         </div>
-        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Rooms</div>
-        <div id="wp-rooms-list"></div>
       </div>
     </div>
 
@@ -292,6 +307,49 @@
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeOverlay('invite-overlay')">Close</button>
       <button class="modal-confirm" onclick="copyInviteLink()">Copy Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── REPORT MESSAGE MODAL ── -->
+<div class="overlay" id="report-overlay">
+  <div class="modal">
+    <h3>🚩 Report Message</h3>
+    <p>Select the reason(s) for reporting this message.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--bg);border-radius:10px;border:1.5px solid transparent;transition:all .15s" id="report-chk-inappropriate-wrap">
+        <input type="checkbox" id="report-chk-inappropriate" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer"/>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">Inappropriate</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Offensive, abusive, or violates community standards</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;background:var(--bg);border-radius:10px;border:1.5px solid transparent;transition:all .15s" id="report-chk-harmful-wrap">
+        <input type="checkbox" id="report-chk-harmful" style="width:16px;height:16px;accent-color:var(--blue);cursor:pointer"/>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">Harmful</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Contains dangerous, threatening, or harmful content</div>
+        </div>
+      </label>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeOverlay('report-overlay')">Cancel</button>
+      <button class="modal-confirm" id="report-submit-btn" onclick="submitReport()">Submit Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FEEDBACK MODAL ── -->
+<div class="overlay" id="feedback-overlay">
+  <div class="modal">
+    <h3>💬 Send Feedback</h3>
+    <p>We'd love to hear your thoughts. Or email us at: <a id="feedback-email-link" href="mailto:ahmed.nizam73@gmail.com" style="color:var(--blue);font-weight:600">ahmed.nizam73@gmail.com</a></p>
+    <textarea id="feedback-text" placeholder="Write your feedback here..." rows="4"
+      style="width:100%;padding:12px 14px;background:var(--bg);border:1.5px solid transparent;border-radius:10px;font-size:14px;font-family:Roboto,sans-serif;outline:none;resize:none;color:var(--text);transition:border-color .15s"
+      onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='transparent'"></textarea>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeOverlay('feedback-overlay')">Cancel</button>
+      <button class="modal-confirm" onclick="submitFeedback()">Submit</button>
     </div>
   </div>
 </div>
