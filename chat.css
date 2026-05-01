@@ -82,7 +82,6 @@ html,body{
 /* Sidebar top */
 #sb-top{
   padding:14px 16px 12px;
-  border-bottom:1px solid var(--border);
   position:relative;
   background:var(--white)
 }
