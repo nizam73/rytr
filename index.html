@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Rytr — Connect to Read</title>
+<title id="page-title">Rytr — Connect to Read</title>
+<link rel="icon" id="favicon" type="image/png" href="data:,">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -70,7 +71,7 @@ html,body{
 body{display:flex;align-items:center;justify-content:center;min-height:100vh}
 #page-wrap{
   width:100%;display:flex;flex-direction:column;align-items:center;
-  padding-top:90px;padding-bottom:48px;
+  padding-top:110px;padding-bottom:48px;
   animation:fadeIn .4s ease
 }
 
@@ -268,8 +269,8 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh}
 
 <div id="page-wrap">
   <div id="hero">
-    <h1>Rytr</h1>
-    <p>Connect to Read</p>
+    <h1 id="hero-name">Rytr</h1>
+    <p id="hero-slogan">Connect to Read</p>
   </div>
 
   <!-- MAIN CARD -->
@@ -370,7 +371,7 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh}
 
     <!-- Messages -->
     <div id="msg"></div>
-    <div id="pending-notice">
+    <div id="pending-notice" style="display:none">
       ⏳ Your writer account is pending admin approval. You'll receive a verification email once approved. Please check back later.
     </div>
   </div>
@@ -420,6 +421,45 @@ const auth = getAuth(app);
 const db   = getFirestore(app);
 
 const ADMIN_EMAILS = ["admin1@rytr.app","admin2@rytr.app","admin3@rytr.app"];
+
+// ── BRANDING: load app name + slogan from Firestore ──
+async function applyBranding() {
+  try {
+    const snap = await getDoc(doc(db,'settings','platform'));
+    const s    = snap.exists() ? snap.data() : {};
+    const name   = s.appName || 'Rytr';
+    const slogan = s.slogan  || 'Connect to Read';
+    document.getElementById('page-title').textContent  = name + ' — ' + slogan;
+    document.getElementById('nav-logo').textContent    = name;
+    document.getElementById('hero-name').textContent   = name;
+    document.getElementById('hero-slogan').textContent = slogan;
+    drawFavicon(name);
+  } catch(e) {
+    drawFavicon('Rytr'); // non-fatal — draw default favicon
+  }
+}
+
+function drawFavicon(name) {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32; canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    // Blue rounded square
+    ctx.fillStyle = '#3949AB';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, 32, 32, 6);
+    ctx.fill();
+    // First letter
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText((name||'R')[0].toUpperCase(), 16, 17);
+    document.getElementById('favicon').href = canvas.toDataURL('image/png');
+  } catch(e) { /* non-fatal */ }
+}
+
+applyBranding();
 
 // State
 let currentRole = 'reader';
