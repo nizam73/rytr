@@ -76,8 +76,22 @@ async function applyPlatformSettings() {
     if(s.colorUnread)        r.setProperty('--unread',       s.colorUnread);
     if(s.colorIcon)          r.setProperty('--icon-color',   s.colorIcon);
     if(s.colorGold)          r.setProperty('--gold',         s.colorGold);
-    // Apply text overrides via DOM
-    if(s.appName) document.title = s.appName;
+
+    // App name — update every visible brand element + page title
+    const name = s.appName || 'Rytr';
+    document.title = name;
+    const lsBrand = document.getElementById('ls-brand');
+    if(lsBrand) lsBrand.textContent = name;
+    const sbBrand = document.getElementById('sb-brand');
+    if(sbBrand) sbBrand.textContent = name;
+    // Any other inline references (e.g. invite modal)
+    document.querySelectorAll('.app-name-ref').forEach(el => el.textContent = name);
+
+    // Slogan — shown under sidebar brand
+    const slogan = s.slogan || '';
+    const sbSlogan = document.getElementById('sb-slogan');
+    if(sbSlogan) sbSlogan.textContent = slogan;
+
   } catch(e) { /* settings load failure is non-fatal */ }
 }
 
@@ -1266,7 +1280,9 @@ window.submitReport = async function() {
 
 // ── FEEDBACK ──
 window.openFeedback = async function() {
-  // Load current feedback email from Firestore settings
+  document.getElementById('feedback-text').value = '';
+  document.getElementById('feedback-overlay').classList.add('show');
+  // Load feedback email in background — non-blocking
   try {
     const snap = await getDoc(doc(db,'settings','platform'));
     const email = snap.exists() && snap.data().feedbackEmail
@@ -1274,9 +1290,7 @@ window.openFeedback = async function() {
       : 'ahmed.nizam73@gmail.com';
     const link = document.getElementById('feedback-email-link');
     if(link) { link.textContent = email; link.href = 'mailto:'+email; }
-  } catch(e) { /* non-fatal */ }
-  document.getElementById('feedback-text').value = '';
-  document.getElementById('feedback-overlay').classList.add('show');
+  } catch(e) { /* non-fatal — default email already in HTML */ }
 };
 window.submitFeedback = async function() {
   const text = document.getElementById('feedback-text').value.trim();
