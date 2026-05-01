@@ -60,6 +60,122 @@ export function toast(msg) {
   t._t = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+// ── NOTIFICATIONS (sound + favicon dot) ──
+
+// Tiny two-tone beep encoded as WAV base64 — no external file needed
+const _BEEP_SRC = 'data:audio/wav;base64,' + (()=>{
+  // Generate programmatically at runtime via AudioContext (Web Audio API)
+  // Falls back gracefully if AudioContext unavailable
+  return '';
+})();
+
+let _audioCtx = null;
+function _getAudioCtx() {
+  if(!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return _audioCtx;
+}
+
+export function playNotifSound() {
+  try {
+    const ctx = _getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime;
+    // Two-tone ding: 880Hz → 1100Hz
+    [{ f:880, start:0, dur:0.12 }, { f:1100, start:0.11, dur:0.12 }].forEach(({ f, start, dur }) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = f;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.35, now + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
+      osc.start(now + start);
+      osc.stop(now + start + dur + 0.01);
+    });
+  } catch(e) { /* non-fatal */ }
+}
+
+// Favicon: draw a blue dot on the existing favicon when there are unread messages
+let _faviconCanvas = null;
+let _faviconBase   = null;   // original favicon image
+let _faviconEl     = null;
+let _faviconHasDot = false;
+let _totalUnread   = 0;
+
+function _ensureFavicon() {
+  if(_faviconEl) return;
+  _faviconEl = document.querySelector('link[rel~="icon"]');
+  if(!_faviconEl) {
+    _faviconEl = document.createElement('link');
+    _faviconEl.rel = 'icon';
+    document.head.appendChild(_faviconEl);
+  }
+  _faviconCanvas = document.createElement('canvas');
+  _faviconCanvas.width = 32;
+  _faviconCanvas.height = 32;
+}
+
+function _drawFaviconDot(hasDot) {
+  _ensureFavicon();
+  const canvas = _faviconCanvas;
+  const ctx2   = canvas.getContext('2d');
+  ctx2.clearRect(0, 0, 32, 32);
+
+  // Draw base favicon letter "R" if no image source
+  ctx2.fillStyle = '#3949AB';
+  ctx2.beginPath();
+  ctx2.roundRect(0, 0, 32, 32, 6);
+  ctx2.fill();
+  ctx2.fillStyle = '#fff';
+  ctx2.font = 'bold 22px sans-serif';
+  ctx2.textAlign = 'center';
+  ctx2.textBaseline = 'middle';
+  ctx2.fillText('R', 16, 17);
+
+  if(hasDot) {
+    // Red notification dot top-right
+    ctx2.fillStyle = '#E53935';
+    ctx2.beginPath();
+    ctx2.arc(26, 6, 7, 0, Math.PI * 2);
+    ctx2.fill();
+    ctx2.fillStyle = '#fff';
+    ctx2.font = 'bold 8px sans-serif';
+    ctx2.textAlign = 'center';
+    ctx2.textBaseline = 'middle';
+    const label = _totalUnread > 9 ? '9+' : String(_totalUnread);
+    ctx2.fillText(label, 26, 6.5);
+  }
+
+  _faviconEl.href = canvas.toDataURL('image/png');
+  _faviconHasDot = hasDot;
+}
+
+export function updateFaviconUnread(chatId, delta) {
+  _totalUnread = Math.max(0, _totalUnread + delta);
+  if(_totalUnread > 0 && !_faviconHasDot) _drawFaviconDot(true);
+  else if(_totalUnread === 0 && _faviconHasDot) _drawFaviconDot(false);
+}
+
+export function clearFaviconForChat() {
+  // Called when user opens/focuses a chat — reset total and redraw
+  _totalUnread = Object.values(S.unreadCounts).reduce((a, b) => a + b, 0);
+  _drawFaviconDot(_totalUnread > 0);
+}
+
+// Hide dot when tab is focused
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') {
+    _totalUnread = 0;
+    if(_faviconHasDot) _drawFaviconDot(false);
+  }
+});
+
+// Draw initial favicon (no dot) once DOM ready
+document.addEventListener('DOMContentLoaded', () => _drawFaviconDot(false));
+
 // ── APPLY PLATFORM SETTINGS ──
 async function applyPlatformSettings() {
   try {
@@ -303,6 +419,14 @@ export async function openChat(chatId, type, meta) {
       await appendMessage(ch.doc, colPath);
       markRead(ch.doc);
       wrap.scrollTop = wrap.scrollHeight;
+      // Notify if message is from someone else
+      if(ch.doc.data().senderId !== S.currentUser.uid) {
+        playNotifSound();
+        if(document.visibilityState !== 'visible') {
+          _totalUnread++;
+          _drawFaviconDot(true);
+        }
+      }
     }
 
     for(const ch of snap.docChanges().filter(c => c.type==='modified')) {
@@ -574,6 +698,7 @@ function listenUnreadForChat(chatId, type) {
 }
 
 function updateBadge(chatId, count) {
+  const prev = S.unreadCounts[chatId] || 0;
   S.unreadCounts[chatId] = count;
   const item = document.getElementById('ci-'+chatId);
   if(!item) return;
@@ -582,6 +707,10 @@ function updateBadge(chatId, count) {
     if(!badge) { badge = document.createElement('div'); badge.className='chat-badge'; item.appendChild(badge); }
     badge.textContent = count > 99 ? '99+' : count;
   } else { badge?.remove(); }
+  // Keep favicon dot in sync with total unread across all chats
+  const total = Object.values(S.unreadCounts).reduce((a,b)=>a+b,0);
+  _totalUnread = total;
+  _drawFaviconDot(total > 0);
 }
 
 // ── SEND MESSAGE ──
