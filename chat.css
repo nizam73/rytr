@@ -172,11 +172,10 @@ html,body{
 .sb-tab{
   flex:1;text-align:center;padding:12px 0;font-size:13px;
   font-weight:500;color:var(--muted);cursor:pointer;
-  border-bottom:2px solid transparent;margin-bottom:-1px;
   transition:all var(--transition-fast);position:relative
 }
 .sb-tab:hover{color:var(--blue-mid)}
-.sb-tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+.sb-tab.active{color:var(--blue);font-weight:600}
 .sb-tab.active::after{
   content:'';position:absolute;bottom:-1px;left:25%;right:25%;
   height:2px;background:var(--blue);border-radius:2px
