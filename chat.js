@@ -385,7 +385,11 @@ async function renderChatItem(docSnap, type) {
         <span class="chat-time">${time}</span>
       </div>
     </div>`;
-  item.onclick = () => openChat(id, type, { name, sub: type==='room'?`by ${data.creatorName||'Writer'}`:'' });
+  item.onclick = () => openChat(id, type, {
+    name,
+    sub: type==='room' ? `by ${data.creatorName||'Writer'}` : '',
+    participantPhotos: data.participantPhotos || {}
+  });
   list.appendChild(item);
   if(!S.chatListeners[id]) { S.chatListeners[id] = true; listenUnreadForChat(id, type); }
 }
@@ -621,12 +625,17 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
   const data  = docSnap.data();
   const msgId = docSnap.id;
   const time  = data.createdAt?.toDate ? formatTime(data.createdAt.toDate()) : formatTime(new Date());
+  // Resolve sender photo: from message field first, then from chat participantPhotos map
+  const senderPhoto = data.senderPhotoURL
+    || (data.senderId && S.currentChatMeta?.participantPhotos?.[data.senderId])
+    || null;
 
   if(!data.locked) {
     const readBy  = data.readBy || [];
     const isRead  = readBy.some(uid => uid !== S.currentUser.uid);
     const tickClr = isMe ? (isRead ? '#fff' : 'rgba(255,255,255,.45)') : 'var(--blue)';
     row.innerHTML = `
+      ${!isMe ? avatarHtml('msg-avi', data.senderName||'U', senderPhoto) : ''}
       <div class="bubble ${isMe?'outgoing':'incoming'}">
         ${!isMe && S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
         <div>${linkify(esc(data.text))}</div>
@@ -660,6 +669,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     const unlockCount = data.unlockCount || 0;
     const fomoText    = unlockCount > 0 ? `<div class="locked-fomo">↑ ${unlockCount} ${unlockCount===1?'person has':'people have'} unlocked this</div>` : '';
     row.innerHTML = `
+      ${!isMe ? avatarHtml('msg-avi', data.senderName||'U', senderPhoto) : ''}
       <div class="locked-card" id="lc-${msgId}">
         <div class="locked-card-body">
           <div class="sender-name">${esc(data.senderName||'')}</div>
@@ -682,6 +692,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     if(S.currentChatId !== (colPath.split('/')[1])) return;
     if(unlockSnap.exists()) {
       row.innerHTML = `
+        ${avatarHtml('msg-avi', data.senderName||'U', senderPhoto)}
         <div class="revealed-card">
           <div class="revealed-card-body">
             ${S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
@@ -840,6 +851,7 @@ window.confirmUnlock = async function() {
     const row = document.getElementById('msg-'+msgId);
     if(row) {
       row.innerHTML = `
+        ${avatarHtml('msg-avi', d.senderName||'U', d.senderPhotoURL||null)}
         <div class="revealed-card">
           <div class="revealed-card-body">
             <div class="bubble-name">${esc(d.senderName||'')}</div>
