@@ -627,7 +627,8 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     const isRead  = readBy.some(uid => uid !== S.currentUser.uid);
     const tickClr = isMe ? (isRead ? '#fff' : 'rgba(255,255,255,.45)') : 'var(--blue)';
     row.innerHTML = `
-      ${!isMe ? avatarHtml('msg-avi', data.senderName||'U', data.senderPhotoURL||null) : ''}
+      ${avatarHtml('msg-avi', S.currentUserData.displayName||'Me', S.currentUserData.photoURL||S.currentUser.photoURL||null)}
+      <div class="bubble ${isMe?'outgoing':'incoming'}">
         ${!isMe && S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
         <div>${linkify(esc(data.text))}</div>
         <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
