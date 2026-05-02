@@ -278,18 +278,20 @@ async function initUI() {
   document.getElementById('sb-user-role').textContent = S.currentUserData.role || 'reader';
   // Show Google profile photo next to user name if available
   const photoURL = S.currentUserData.photoURL || S.currentUser.photoURL;
-  const sbUserInfo = document.getElementById('sb-user-info');
-  if(photoURL && sbUserInfo) {
-    let img = document.getElementById('sb-user-photo');
-    if(!img) {
-      img = document.createElement('img');
-      img.id = 'sb-user-photo';
-      img.style.cssText = 'width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--border)';
-      sbUserInfo.parentElement.insertBefore(img, sbUserInfo);
+  const avatarWrap = document.getElementById('sb-avatar-wrap');
+  if(avatarWrap) {
+    if(photoURL) {
+      avatarWrap.innerHTML = `<img src="${photoURL}" alt=""
+        style="width:34px;height:34px;border-radius:50%;object-fit:cover;
+               border:2px solid var(--border);display:block;"
+        onerror="this.parentElement.innerHTML=initAvi"/>`;
+    } else {
+      const initial = (S.currentUserData.displayName||S.currentUser.displayName||'U')[0].toUpperCase();
+      avatarWrap.innerHTML = `<div style="width:34px;height:34px;border-radius:50%;
+        background:linear-gradient(135deg,var(--blue),var(--blue-mid));
+        color:#fff;display:flex;align-items:center;justify-content:center;
+        font-size:14px;font-weight:700;">${initial}</div>`;
     }
-    img.src = photoURL;
-    img.alt = '';
-    img.onerror = () => img.remove();
   }
   const urlParams    = new URLSearchParams(window.location.search);
   const inviteRoomId = urlParams.get('room');
@@ -652,7 +654,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     row.innerHTML = `
       <div class="own-locked">
         <div class="own-locked-top">
-          <span class="own-locked-label">⊠ Locked</span>
+          <span class="own-locked-label">🔒 Locked</span>
           <span class="own-locked-price">◎ ${data.price} pts</span>
         </div>
         <div class="own-locked-text">${esc(data.text)}</div>
@@ -781,11 +783,11 @@ window.sendMessage = async function() {
   try {
     await addDoc(collection(db, colPath), msgData);
     const topRef = doc(db, S.currentChatType==='room'?'rooms':'chats', S.currentChatId);
-    await updateDoc(topRef, { lastMessage: locked?`⊠ Locked · ${price} pts`:text.slice(0,60), lastMessageAt: serverTimestamp() });
+    await updateDoc(topRef, { lastMessage: locked?`🔒 Locked · ${price} pts`:text.slice(0,60), lastMessageAt: serverTimestamp() });
     if(locked) {
       S.isLocked = false;
       document.getElementById('lock-btn').classList.remove('locked');
-      document.getElementById('lock-btn').textContent = '⊡';
+      document.getElementById('lock-btn').textContent = '🔓';
       document.getElementById('price-select').classList.remove('visible');
     }
   } catch(e) { toast('Failed to send. Try again.'); }
@@ -798,7 +800,7 @@ window.toggleLock = function() {
   const btn = document.getElementById('lock-btn');
   const sel = document.getElementById('price-select');
   btn.classList.toggle('locked', S.isLocked);
-  btn.textContent = S.isLocked ? '⊠' : '⊡';
+  btn.textContent = S.isLocked ? '🔒' : '🔓';
   sel.classList.toggle('visible', S.isLocked);
 };
 
@@ -817,7 +819,7 @@ window.openUnlock = function(msgId) {
   afterEl.className   = after < 0 ? 'v danger' : 'v';
   document.getElementById('ul-warn').style.display    = after < 0 ? '' : 'none';
   const btn = document.getElementById('ul-confirm');
-  btn.disabled = after < 0; btn.textContent = after < 0 ? 'Not enough Points' : 'Unlock ⊡';
+  btn.disabled = after < 0; btn.textContent = after < 0 ? 'Not enough Points' : 'Unlock 🔓';
   document.getElementById('unlock-overlay').classList.add('show');
 };
 
@@ -843,7 +845,7 @@ window.confirmUnlock = async function() {
       tx.update(msgRef,   { unlockCount: increment(1) });
     });
     window.closeOverlay('unlock-overlay');
-    toast('⊡ Unlocked!');
+    toast('🔓 Unlocked!');
     const msgSnap = await getDoc(doc(db,colPath,msgId));
     const d = msgSnap.data();
 
@@ -873,7 +875,7 @@ window.confirmUnlock = async function() {
       }
     }
   } catch(e) {
-    btn.disabled = false; btn.textContent = 'Unlock ⊡';
+    btn.disabled = false; btn.textContent = 'Unlock 🔓';
     if(e.message==='already_unlocked') { toast('Already unlocked!'); window.closeOverlay('unlock-overlay'); }
     else if(e.message==='insufficient') toast('Not enough Points!');
     else toast('Transaction failed. Try again.');
