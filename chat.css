@@ -1,7 +1,13 @@
 /* chat.css — Rytr v2 — Modern native-app feel */
 
 /* ── RESET & FONTS ── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{
+  box-sizing:border-box;margin:0;padding:0;
+  -webkit-tap-highlight-color:transparent;
+  tap-highlight-color:transparent
+}
+button,a,[role="button"]{outline:none;-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 :root{
   --blue:#3949AB;
   --blue-dark:#283593;
@@ -162,10 +168,11 @@ html,body{
 .settings-item:active{background:var(--border-light)}
 .settings-item.danger{color:#D32F2F}
 .settings-item .si-icon{
-  font-size:16px;filter:grayscale(1) brightness(0);
-  flex-shrink:0;width:20px;text-align:center
+  font-size:15px;color:var(--muted);
+  flex-shrink:0;width:20px;text-align:center;
+  font-style:normal
 }
-.settings-item.danger .si-icon{filter:none}
+.settings-item.danger .si-icon{color:#D32F2F}
 
 /* Tabs */
 #sb-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--white)}
@@ -215,11 +222,12 @@ html,body{
 .chat-item:active{background:var(--blue-light)}
 .chat-item.active{background:var(--blue-light)}
 
-.chat-avatar{
+.chat-avatar,.chat-avatar img{
   width:46px;height:46px;border-radius:50%;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid));
   color:#fff;display:flex;align-items:center;justify-content:center;
   font-size:18px;font-weight:700;flex-shrink:0;overflow:hidden;
+  object-fit:cover;
   box-shadow:0 2px 6px rgba(57,73,171,.2)
 }
 .chat-info{flex:1;min-width:0}
@@ -287,7 +295,7 @@ html,body{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   color:var(--muted);gap:14px;animation:fadeIn .3s ease
 }
-#empty-state .big-icon{font-size:72px;opacity:.2;animation:pulse 3s ease infinite}
+#empty-state .big-icon{font-size:56px;opacity:.15;animation:pulse 3s ease infinite;color:var(--blue)}
 #empty-state p{font-size:15px;font-weight:500}
 
 /* Chat header */
@@ -375,11 +383,12 @@ html,body{
   animation:msgIn .2s cubic-bezier(.4,0,.2,1)
 }
 .msg-row.outgoing{flex-direction:row-reverse}
-.msg-avi{
+.msg-avi,.msg-avi img{
   width:26px;height:26px;border-radius:50%;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid));
   color:#fff;display:flex;align-items:center;justify-content:center;
-  font-size:10px;font-weight:700;flex-shrink:0;align-self:flex-end
+  font-size:10px;font-weight:700;flex-shrink:0;align-self:flex-end;
+  object-fit:cover
 }
 
 /* Bubbles */
@@ -641,11 +650,11 @@ html,body{
 }
 #writer-profile.visible{display:flex !important;animation:fadeIn .22s ease}
 
-.wp-avi{
+.wp-avi,.wp-avi img{
   width:42px;height:42px;border-radius:50%;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid));
   color:#fff;display:flex;align-items:center;justify-content:center;
-  font-size:18px;font-weight:700;flex-shrink:0
+  font-size:18px;font-weight:700;flex-shrink:0;object-fit:cover
 }
 .rp-back-btn{
   background:none;border:none;font-size:20px;cursor:pointer;
@@ -720,6 +729,18 @@ html,body{
   background:var(--bg);z-index:5;overflow:hidden
 }
 #room-profile.visible{display:flex !important;animation:fadeIn .22s ease}
+
+#writer-profile .rp-scroll{
+  flex:1;overflow-y:auto;
+  display:flex;flex-direction:column;align-items:center
+}
+#writer-profile .rp-scroll::-webkit-scrollbar{width:3px}
+#writer-profile .rp-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.08);border-radius:3px}
+#writer-profile .rp-content{
+  width:100%;max-width:680px;
+  display:flex;flex-direction:column;
+  background:var(--bg);flex:1
+}
 
 #room-profile .rp-scroll{
   flex:1;overflow-y:auto;
