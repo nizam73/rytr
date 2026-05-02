@@ -627,7 +627,6 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     const isRead  = readBy.some(uid => uid !== S.currentUser.uid);
     const tickClr = isMe ? (isRead ? '#fff' : 'rgba(255,255,255,.45)') : 'var(--blue)';
     row.innerHTML = `
-      ${avatarHtml('msg-avi', S.currentUserData.displayName||'Me', S.currentUserData.photoURL||S.currentUser.photoURL||null)}
       <div class="bubble ${isMe?'outgoing':'incoming'}">
         ${!isMe && S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
         <div>${linkify(esc(data.text))}</div>
@@ -661,7 +660,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     const unlockCount = data.unlockCount || 0;
     const fomoText    = unlockCount > 0 ? `<div class="locked-fomo">↑ ${unlockCount} ${unlockCount===1?'person has':'people have'} unlocked this</div>` : '';
     row.innerHTML = `
-      ${!isMe ? avatarHtml('msg-avi', data.senderName||'U', data.senderPhotoURL||null) : ''}
+      <div class="locked-card" id="lc-${msgId}">
         <div class="locked-card-body">
           <div class="sender-name">${esc(data.senderName||'')}</div>
           <div class="blurred-text">${esc(data.text)}</div>
@@ -683,7 +682,6 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     if(S.currentChatId !== (colPath.split('/')[1])) return;
     if(unlockSnap.exists()) {
       row.innerHTML = `
-        ${avatarHtml('msg-avi', data.senderName||'U', data.senderPhotoURL||null)}
         <div class="revealed-card">
           <div class="revealed-card-body">
             ${S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
@@ -842,7 +840,6 @@ window.confirmUnlock = async function() {
     const row = document.getElementById('msg-'+msgId);
     if(row) {
       row.innerHTML = `
-        ${avatarHtml('msg-avi', d.senderName||'U', d.senderPhotoURL||null)}
         <div class="revealed-card">
           <div class="revealed-card-body">
             <div class="bubble-name">${esc(d.senderName||'')}</div>
