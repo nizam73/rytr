@@ -709,7 +709,6 @@ html,body{
   min-width:130px;z-index:50;overflow:hidden;
   animation:scaleIn .15s ease;transform-origin:top right
 }
-.msg-row.outgoing .msg-more-menu{right:0}
 .msg-row.incoming .msg-more-menu{left:0;right:auto;transform-origin:top left}
 .msg-more-item{
   padding:10px 16px;font-size:13px;color:var(--text);
