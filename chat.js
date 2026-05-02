@@ -400,6 +400,10 @@ const PAGE_SIZE = 15;
 
 // ── OPEN CHAT ──
 export async function openChat(chatId, type, meta) {
+  // Ensure lock controls stay visible for writers regardless of room ownership
+  if(S.currentUserData?.role === 'writer') {
+    document.getElementById('lock-controls').classList.add('visible');
+  }
   // Unsubscribe all previous listeners
   Object.entries(S.msgListeners).forEach(([k,v]) => { if(Array.isArray(v)) v.forEach(fn=>fn()); else v(); });
   Object.keys(S.msgListeners).forEach(k => delete S.msgListeners[k]);
