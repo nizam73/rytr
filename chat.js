@@ -60,6 +60,15 @@ export function toast(msg) {
   t._t = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+// Generates an avatar element — photo if available, else initial letter
+export function avatarHtml(cls, name, photoURL) {
+  const initial = (name||'U')[0].toUpperCase();
+  if(photoURL) {
+    return `<img class="${cls}" src="${esc(photoURL)}" alt="${initial}" style="border-radius:50%;object-fit:cover;" onerror="this.outerHTML='<div class=&quot;${cls}&quot;>${initial}</div>'"/>`;
+  }
+  return `<div class="${cls}">${initial}</div>`;
+}
+
 // ── NOTIFICATIONS (sound + favicon dot) ──
 
 // Tiny two-tone beep encoded as WAV base64 — no external file needed
@@ -220,6 +229,8 @@ onAuthStateChanged(auth, async user => {
     window.location.href = 'index.html'; return;
   }
   S.currentUser = freshUser;
+  // Store photo URL — prefer Google photo, fall back to null
+  S.currentUserPhotoURL = freshUser.photoURL || null;
   let snap;
   try {
     snap = await getDoc(doc(db,'users', freshUser.uid));
@@ -229,6 +240,11 @@ onAuthStateChanged(auth, async user => {
   }
   if(!snap.exists()) { window.location.href = 'index.html'; return; }
   S.currentUserData = snap.data();
+  // Sync Google photo URL to Firestore if available and not already stored
+  if(freshUser.photoURL && S.currentUserData.photoURL !== freshUser.photoURL) {
+    updateDoc(doc(db,'users',freshUser.uid), { photoURL: freshUser.photoURL }).catch(()=>{});
+    S.currentUserData = { ...S.currentUserData, photoURL: freshUser.photoURL };
+  }
   if(S.currentUserData.blocked) { await signOut(auth); window.location.href = 'index.html'; return; }
   if(S.currentUserData.role === 'admin') { window.location.href = 'admin.html'; return; }
 
@@ -260,6 +276,21 @@ async function initUI() {
   // User identity in sidebar
   document.getElementById('sb-user-name').textContent = S.currentUserData.displayName || S.currentUser.displayName || 'User';
   document.getElementById('sb-user-role').textContent = S.currentUserData.role || 'reader';
+  // Show Google profile photo next to user name if available
+  const photoURL = S.currentUserData.photoURL || S.currentUser.photoURL;
+  const sbUserInfo = document.getElementById('sb-user-info');
+  if(photoURL && sbUserInfo) {
+    let img = document.getElementById('sb-user-photo');
+    if(!img) {
+      img = document.createElement('img');
+      img.id = 'sb-user-photo';
+      img.style.cssText = 'width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid var(--border)';
+      sbUserInfo.parentElement.insertBefore(img, sbUserInfo);
+    }
+    img.src = photoURL;
+    img.alt = '';
+    img.onerror = () => img.remove();
+  }
   const urlParams    = new URLSearchParams(window.location.search);
   const inviteRoomId = urlParams.get('room');
   const inviteWriter = urlParams.get('writer');
@@ -337,8 +368,14 @@ async function renderChatItem(docSnap, type) {
     const otherId = (data.participants||[]).find(p => p !== S.currentUser.uid);
     name = data.participantNames?.[otherId] || 'User'; sub = ''; initial = (name[0]||'U').toUpperCase();
   }
+  // For DMs, try to get the other user's photo from participantPhotos map
+  const otherPhoto = type === 'dm'
+    ? (data.participantPhotos?.[(data.participants||[]).find(p => p !== S.currentUser.uid)] || null)
+    : null;
   item.innerHTML = `
-    <div class="chat-avatar">${initial}</div>
+    ${otherPhoto
+      ? `<img class="chat-avatar" src="${esc(otherPhoto)}" alt="${esc(initial)}" onerror="this.outerHTML='<div class=\\'chat-avatar\\'>${initial}</div>'">`
+      : `<div class="chat-avatar">${initial}</div>`}
     <div class="chat-info">
       <div class="chat-name">${name}${type==='room'?'<span class="room-tag">Room</span>':''}</div>
       ${sub}
@@ -389,7 +426,7 @@ export async function openChat(chatId, type, meta) {
     const ph = document.createElement('div');
     ph.id = 'chat-placeholder';
     ph.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#bbb;gap:10px;pointer-events:none;user-select:none';
-    ph.innerHTML = `<div style="font-size:44px">💬</div><div style="font-size:13px;font-weight:500">Send a message to start the conversation</div>`;
+    ph.innerHTML = `<div style="font-size:44px">✦</div><div style="font-size:13px;font-weight:500">Send a message to start the conversation</div>`;
     wrap.appendChild(ph);
     S.paginationDone = true;
   } else {
@@ -590,8 +627,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     const isRead  = readBy.some(uid => uid !== S.currentUser.uid);
     const tickClr = isMe ? (isRead ? '#fff' : 'rgba(255,255,255,.45)') : 'var(--blue)';
     row.innerHTML = `
-      ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
-      <div class="bubble ${isMe?'outgoing':'incoming'}">
+      ${!isMe ? avatarHtml('msg-avi', data.senderName||'U', data.senderPhotoURL||null) : ''}
         ${!isMe && S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
         <div>${linkify(esc(data.text))}</div>
         <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
@@ -599,7 +635,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
       <div class="msg-more-wrap">
         <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
         <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
-          <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
+          <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>
         </div>
       </div>`;
 
@@ -607,14 +643,14 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     row.innerHTML = `
       <div class="own-locked">
         <div class="own-locked-top">
-          <span class="own-locked-label">🔒 Locked</span>
-          <span class="own-locked-price">🪙 ${data.price} pts</span>
+          <span class="own-locked-label">⊠ Locked</span>
+          <span class="own-locked-price">◎ ${data.price} pts</span>
         </div>
         <div class="own-locked-text">${esc(data.text)}</div>
         <div class="bubble-time" style="text-align:right;font-size:10px;color:#aaa;">${time}</div>
         <div class="own-locked-stats">
           <div class="stat">Unlocked by <b id="uc-${msgId}">${data.unlockCount||0}</b></div>
-          <div class="stat">Earned <b id="ue-${msgId}">🪙 ${(data.unlockCount||0)*data.price}</b></div>
+          <div class="stat">Earned <b id="ue-${msgId}">◎ ${(data.unlockCount||0)*data.price}</b></div>
         </div>
       </div>`;
     listenUnlockCount(docSnap.ref, msgId, data.price, S.currentChatId);
@@ -622,10 +658,9 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
   } else {
     S.unlockDataMap.set(msgId, { colPath, senderName: data.senderName||'', price: data.price, senderId: data.senderId });
     const unlockCount = data.unlockCount || 0;
-    const fomoText    = unlockCount > 0 ? `<div class="locked-fomo">🔥 ${unlockCount} ${unlockCount===1?'person has':'people have'} unlocked this</div>` : '';
+    const fomoText    = unlockCount > 0 ? `<div class="locked-fomo">↑ ${unlockCount} ${unlockCount===1?'person has':'people have'} unlocked this</div>` : '';
     row.innerHTML = `
-      ${!isMe ? `<div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>` : ''}
-      <div class="locked-card" id="lc-${msgId}">
+      ${!isMe ? avatarHtml('msg-avi', data.senderName||'U', data.senderPhotoURL||null) : ''}
         <div class="locked-card-body">
           <div class="sender-name">${esc(data.senderName||'')}</div>
           <div class="blurred-text">${esc(data.text)}</div>
@@ -639,7 +674,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
       <div class="msg-more-wrap">
         <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
         <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
-          <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
+          <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>
         </div>
       </div>`;
     const unlockRef = doc(db, `unlocks/${S.currentUser.uid}_${msgId}`);
@@ -647,7 +682,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     if(S.currentChatId !== (colPath.split('/')[1])) return;
     if(unlockSnap.exists()) {
       row.innerHTML = `
-        <div class="msg-avi">${(data.senderName||'U')[0].toUpperCase()}</div>
+        ${avatarHtml('msg-avi', data.senderName||'U', data.senderPhotoURL||null)}
         <div class="revealed-card">
           <div class="revealed-card-body">
             ${S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
@@ -659,7 +694,7 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
         <div class="msg-more-wrap">
           <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
           <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
-            <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">🚩 Report</div>
+            <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>
           </div>
         </div>`;
     }
@@ -674,7 +709,7 @@ function listenUnlockCount(ref, msgId, price, chatId) {
     const uc = document.getElementById('uc-'+msgId);
     const ue = document.getElementById('ue-'+msgId);
     if(uc) uc.textContent = d.unlockCount||0;
-    if(ue) ue.textContent = `🪙 ${(d.unlockCount||0)*price}`;
+    if(ue) ue.textContent = `◎ ${(d.unlockCount||0)*price}`;
   });
   if(!S.msgListeners['_uc_'+chatId]) S.msgListeners['_uc_'+chatId] = [];
   S.msgListeners['_uc_'+chatId].push(unsub);
@@ -725,6 +760,7 @@ window.sendMessage = async function() {
   const msgData = {
     senderId:    S.currentUser.uid,
     senderName:  S.currentUserData.displayName || S.currentUser.displayName || 'User',
+    senderPhotoURL: S.currentUserData.photoURL || S.currentUser.photoURL || null,
     text, locked,
     price:       locked ? price : 0,
     unlockCount: 0,
@@ -735,11 +771,11 @@ window.sendMessage = async function() {
   try {
     await addDoc(collection(db, colPath), msgData);
     const topRef = doc(db, S.currentChatType==='room'?'rooms':'chats', S.currentChatId);
-    await updateDoc(topRef, { lastMessage: locked?`🔒 Locked · ${price} pts`:text.slice(0,60), lastMessageAt: serverTimestamp() });
+    await updateDoc(topRef, { lastMessage: locked?`⊠ Locked · ${price} pts`:text.slice(0,60), lastMessageAt: serverTimestamp() });
     if(locked) {
       S.isLocked = false;
       document.getElementById('lock-btn').classList.remove('locked');
-      document.getElementById('lock-btn').textContent = '🔓';
+      document.getElementById('lock-btn').textContent = '⊡';
       document.getElementById('price-select').classList.remove('visible');
     }
   } catch(e) { toast('Failed to send. Try again.'); }
@@ -752,7 +788,7 @@ window.toggleLock = function() {
   const btn = document.getElementById('lock-btn');
   const sel = document.getElementById('price-select');
   btn.classList.toggle('locked', S.isLocked);
-  btn.textContent = S.isLocked ? '🔒' : '🔓';
+  btn.textContent = S.isLocked ? '⊠' : '⊡';
   sel.classList.toggle('visible', S.isLocked);
 };
 
@@ -771,7 +807,7 @@ window.openUnlock = function(msgId) {
   afterEl.className   = after < 0 ? 'v danger' : 'v';
   document.getElementById('ul-warn').style.display    = after < 0 ? '' : 'none';
   const btn = document.getElementById('ul-confirm');
-  btn.disabled = after < 0; btn.textContent = after < 0 ? 'Not enough Points' : 'Unlock 🔓';
+  btn.disabled = after < 0; btn.textContent = after < 0 ? 'Not enough Points' : 'Unlock ⊡';
   document.getElementById('unlock-overlay').classList.add('show');
 };
 
@@ -797,7 +833,7 @@ window.confirmUnlock = async function() {
       tx.update(msgRef,   { unlockCount: increment(1) });
     });
     window.closeOverlay('unlock-overlay');
-    toast('🔓 Unlocked!');
+    toast('⊡ Unlocked!');
     const msgSnap = await getDoc(doc(db,colPath,msgId));
     const d = msgSnap.data();
 
@@ -805,7 +841,7 @@ window.confirmUnlock = async function() {
     const row = document.getElementById('msg-'+msgId);
     if(row) {
       row.innerHTML = `
-        <div class="msg-avi">${(d.senderName||'U')[0].toUpperCase()}</div>
+        ${avatarHtml('msg-avi', d.senderName||'U', d.senderPhotoURL||null)}
         <div class="revealed-card">
           <div class="revealed-card-body">
             <div class="bubble-name">${esc(d.senderName||'')}</div>
@@ -827,7 +863,7 @@ window.confirmUnlock = async function() {
       }
     }
   } catch(e) {
-    btn.disabled = false; btn.textContent = 'Unlock 🔓';
+    btn.disabled = false; btn.textContent = 'Unlock ⊡';
     if(e.message==='already_unlocked') { toast('Already unlocked!'); window.closeOverlay('unlock-overlay'); }
     else if(e.message==='insufficient') toast('Not enough Points!');
     else toast('Transaction failed. Try again.');
@@ -841,7 +877,7 @@ window.confirmAddPoints = async function() {
   if(!S.selectedPtsAmt) { toast('Pick a package first'); return; }
   await updateDoc(doc(db,'users',S.currentUser.uid), { balance: increment(S.selectedPtsAmt) });
   window.closeOverlay('addpoints-overlay');
-  toast(`✅ ${S.selectedPtsAmt} Points added!`);
+  toast(`✓ ${S.selectedPtsAmt} Points added!`);
 };
 
 // ── FIND WRITERS ──
@@ -878,7 +914,12 @@ export async function openWriterProfile(wr, source='list') {
   const { setMainState, showMain, pushNav } = await import('./ui.js');
   setMainState('profile'); showMain();
   pushNav({ type:'profile', writerData: wr });
-  document.getElementById('wp-avi').textContent   = (wr.displayName||'W')[0].toUpperCase();
+  const aviEl = document.getElementById('wp-avi');
+  if(wr.photoURL) {
+    aviEl.innerHTML = `<img src="${esc(wr.photoURL)}" alt="${esc((wr.displayName||'W')[0].toUpperCase())}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;" onerror="this.parentElement.textContent='${(wr.displayName||'W')[0].toUpperCase()}'"/>`;
+  } else {
+    aviEl.textContent = (wr.displayName||'W')[0].toUpperCase();
+  }
   document.getElementById('wp-name').textContent  = wr.displayName || 'Writer';
   document.getElementById('wp-email').textContent = wr.email || '';
   document.getElementById('wp-bio').textContent   = wr.bio || 'This writer hasn\'t added a bio yet.';
@@ -887,7 +928,7 @@ export async function openWriterProfile(wr, source='list') {
   document.getElementById('wp-rooms-count').textContent = '...';
   document.getElementById('wp-chat-btn').onclick = async () => {
     const { setMainState: sm } = await import('./ui.js');
-    sm('empty'); await startDM(wr.uid, wr.displayName||'Writer');
+    sm('empty'); await startDM(wr.uid, wr.displayName||'Writer', wr.photoURL||null);
   };
   const roomsList = document.getElementById('wp-rooms-list');
   roomsList.innerHTML = '<div style="font-size:13px;color:#bbb">Loading rooms...</div>';
@@ -943,16 +984,24 @@ export async function loadRoomsBrowse() {
 }
 
 // ── START DM ──
-window.startDM = async function(writerId, writerName) {
+window.startDM = async function(writerId, writerName, writerPhoto) {
   const chatId  = [S.currentUser.uid, writerId].sort().join('_');
   const chatRef = doc(db,'chats',chatId);
   const snap    = await getDoc(chatRef);
+  const myPhoto = S.currentUserData.photoURL || S.currentUser.photoURL || null;
   if(!snap.exists()) {
     await setDoc(chatRef, {
       participants:     [S.currentUser.uid, writerId],
       participantNames: { [S.currentUser.uid]: S.currentUserData.displayName||'User', [writerId]: writerName },
+      participantPhotos:{ [S.currentUser.uid]: myPhoto, [writerId]: writerPhoto||null },
       lastMessage:'', lastMessageAt: serverTimestamp()
     });
+  } else if(myPhoto || writerPhoto) {
+    // Update photos in case they changed
+    const updates = {};
+    if(myPhoto)    updates[`participantPhotos.${S.currentUser.uid}`] = myPhoto;
+    if(writerPhoto) updates[`participantPhotos.${writerId}`] = writerPhoto;
+    updateDoc(chatRef, updates).catch(()=>{});
   }
   openChat(chatId,'dm',{name:writerName,sub:'Direct Message'});
 };
@@ -987,7 +1036,7 @@ window.createRoom = async function() {
     });
     document.getElementById('room-name-input').value='';
     window.closeOverlay('room-overlay');
-    toast('✅ Room created!');
+    toast('✓ Room created!');
     openChat(ref.id,'room',{name,sub:`by ${S.currentUserData.displayName}`});
   } catch(e) {
     if(e.message==='insufficient') toast('Not enough Points to create a room.');
@@ -1128,12 +1177,12 @@ async function loadRpThread(roomId) {
       item.innerHTML = `
         <div class="rp-thread-header">
           <span class="rp-thread-sender">${esc(msg.senderName||'Writer')}</span>
-          <span class="rp-thread-price">🪙 ${msg.price} pts · ${time}</span>
+          <span class="rp-thread-price">◎ ${msg.price} pts · ${time}</span>
         </div>
         <div class="rp-thread-content">${contentHtml}</div>
         ${isOwn ? `<div class="rp-thread-stats">
           <span class="rp-thread-stat">Unlocked by <b>${msg.unlockCount||0}</b></span>
-          <span class="rp-thread-stat">Earned <b>🪙 ${(msg.unlockCount||0)*(msg.price||0)}</b></span>
+          <span class="rp-thread-stat">Earned <b>◎ ${(msg.unlockCount||0)*(msg.price||0)}</b></span>
         </div>` : ''}`;
       list.appendChild(item);
     }
@@ -1251,7 +1300,7 @@ window.addSeats = async function() {
     document.getElementById('rp-seats').textContent = curSeats + 1000;
     document.getElementById('rp-members-count-label').textContent =
       `Members: ${document.getElementById('rp-member-count').textContent} / ${curSeats + 1000}`;
-    toast('✅ 1000 seats added!');
+    toast('✓ 1000 seats added!');
   } catch(e) {
     if(e.message==='insufficient') toast('Not enough Points.');
     else toast('Failed: '+e.message);
@@ -1281,12 +1330,12 @@ window.onHeaderClick = async function() {
 // ── INVITE LINK ──
 window.showWriterProfileLink = function() {
   const link = `${location.origin}/chat.html?writer=${S.currentUser.uid}`;
-  navigator.clipboard.writeText(link).then(() => toast('✅ Your chat link copied! Share it with readers.')).catch(() => prompt('Copy your invite link:', link));
+  navigator.clipboard.writeText(link).then(() => toast('✓ Your chat link copied! Share it with readers.')).catch(() => prompt('Copy your invite link:', link));
 };
 window.copyWriterLink = function(writerId, e) {
   e.stopPropagation();
   const link = `${location.origin}/chat.html?writer=${writerId}`;
-  navigator.clipboard.writeText(link).then(() => toast('✅ Writer chat link copied!')).catch(() => prompt('Copy this link:', link));
+  navigator.clipboard.writeText(link).then(() => toast('✓ Writer chat link copied!')).catch(() => prompt('Copy this link:', link));
 };
 window.showInviteLink = function() {
   const link = `${location.origin}/chat.html?room=${S.currentChatId}`;
@@ -1295,7 +1344,7 @@ window.showInviteLink = function() {
 };
 window.copyInviteLink = function() {
   const link = document.getElementById('invite-link-box').textContent;
-  navigator.clipboard.writeText(link).then(() => { toast('✅ Link copied!'); window.closeOverlay('invite-overlay'); }).catch(() => { const el=document.getElementById('invite-link-box'); const r=document.createRange(); r.selectNodeContents(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); });
+  navigator.clipboard.writeText(link).then(() => { toast('✓ Link copied!'); window.closeOverlay('invite-overlay'); }).catch(() => { const el=document.getElementById('invite-link-box'); const r=document.createRange(); r.selectNodeContents(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); });
 };
 
 async function joinRoomById(roomId) {
@@ -1304,7 +1353,7 @@ async function joinRoomById(roomId) {
     if(!snap.exists()) { toast('Room not found.'); return; }
     const room = snap.data();
     openChat(roomId,'room',{name:room.name||'Room',sub:`by ${room.creatorName||'Writer'}`});
-    toast(`✅ Joined "${room.name}"!`);
+    toast(`✓ Joined "${room.name}"!`);
   } catch(e) { toast('Could not join room.'); }
 }
 
@@ -1401,7 +1450,7 @@ window.submitReport = async function() {
       status:        'pending'
     });
     window.closeOverlay('report-overlay');
-    toast('✅ Report submitted. Thank you.');
+    toast('✓ Report submitted. Thank you.');
     _pendingReport = null;
   } catch(e) { toast('Failed to submit report: '+e.message); }
   finally { btn.disabled=false; btn.textContent='Submit Report'; }
@@ -1436,7 +1485,7 @@ window.submitFeedback = async function() {
       status:       'new'
     });
     window.closeOverlay('feedback-overlay');
-    toast('✅ Feedback sent. Thank you!');
+    toast('✓ Feedback sent. Thank you!');
   } catch(e) { toast('Failed to submit feedback: '+e.message); }
   finally { btn.disabled=false; btn.textContent='Submit'; }
 };
