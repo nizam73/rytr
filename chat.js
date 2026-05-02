@@ -400,9 +400,20 @@ const PAGE_SIZE = 15;
 
 // ── OPEN CHAT ──
 export async function openChat(chatId, type, meta) {
-  // Ensure lock controls stay visible for writers regardless of room ownership
+  // Lock controls: writers can lock in DMs and in rooms they own — not in others' rooms
   if(S.currentUserData?.role === 'writer') {
-    document.getElementById('lock-controls').classList.add('visible');
+    if(type === 'dm') {
+      document.getElementById('lock-controls').classList.add('visible');
+    } else {
+      // Room: fetch creator to decide
+      try {
+        const roomSnap = await getDoc(doc(db, 'rooms', chatId));
+        const isOwner = roomSnap.exists() && roomSnap.data().createdBy === S.currentUser.uid;
+        document.getElementById('lock-controls').classList.toggle('visible', isOwner);
+      } catch(e) {
+        document.getElementById('lock-controls').classList.remove('visible');
+      }
+    }
   }
   // Unsubscribe all previous listeners
   Object.entries(S.msgListeners).forEach(([k,v]) => { if(Array.isArray(v)) v.forEach(fn=>fn()); else v(); });
