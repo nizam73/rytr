@@ -455,11 +455,22 @@ export async function openChat(chatId, type, meta) {
     S.paginationFirstDoc = docs[0];
     if(docs.length < PAGE_SIZE) S.paginationDone = true;
     if(!S.paginationDone) insertLoadMoreBtn(wrap);
+
+    // Suppress entry animations and hide overflow during initial render
+    // so messages appear instantly at the bottom with no scroll effect
+    wrap.classList.add('loading-messages');
     for(const docSnap of docs) {
       await appendMessage(docSnap, colPath);
       markRead(docSnap);
     }
+    // Jump to bottom before revealing — browser paints at correct position
     wrap.scrollTop = wrap.scrollHeight;
+    // Re-enable animations after a single frame
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        wrap.classList.remove('loading-messages');
+      });
+    });
   }
 
   // Step 2: Live listener — only messages AFTER what we already loaded
