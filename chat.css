@@ -344,10 +344,18 @@ html,body{
   padding:16px 20px;
   background:var(--bg);
   display:none;flex-direction:column;gap:3px;
-  scroll-behavior:smooth;
+  overflow-anchor:none;
   background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233949AB' fill-opacity='0.018'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")
 }
 #messages-wrap.visible{display:flex}
+/* During initial load: kill entry animations so messages appear instantly at bottom */
+#messages-wrap.loading-messages .msg-row,
+#messages-wrap.loading-messages .date-divider,
+#messages-wrap.loading-messages .locked-card,
+#messages-wrap.loading-messages .own-locked{
+  animation:none !important;
+  opacity:1 !important;
+}
 #messages-wrap::-webkit-scrollbar{width:3px}
 #messages-wrap::-webkit-scrollbar-thumb{background:rgba(0,0,0,.1);border-radius:3px}
 
