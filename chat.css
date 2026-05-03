@@ -232,16 +232,16 @@ html,body{
 }
 .chat-info{flex:1;min-width:0}
 .chat-name{
-  font-size:14px;font-weight:600;color:var(--text);
+  font-size:16px;font-weight:600;color:var(--text);
   margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
 .chat-meta{display:flex;align-items:center;gap:4px}
 .chat-preview{
-  font-size:12px;color:var(--muted);
+  font-size:14px;color:var(--muted);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1
 }
-.chat-time{font-size:11px;color:#bbb;flex-shrink:0;white-space:nowrap}
-.chat-tick{font-size:11px;color:var(--blue);flex-shrink:0}
+.chat-time{font-size:13px;color:#bbb;flex-shrink:0;white-space:nowrap}
+.chat-tick{font-size:13px;color:var(--blue);flex-shrink:0}
 .chat-badge{
   position:absolute;top:12px;right:14px;
   background:var(--unread);color:#fff;
@@ -251,7 +251,7 @@ html,body{
   padding:0 4px;
   animation:badgePop .25s cubic-bezier(.4,0,.2,1)
 }
-.by-writer{font-size:11px;color:var(--muted);display:block}
+.by-writer{font-size:13px;color:var(--muted);display:block}
 .room-tag{
   font-size:10px;background:var(--blue-light);color:var(--blue);
   padding:2px 7px;border-radius:4px;font-weight:600;margin-left:4px;
@@ -394,7 +394,7 @@ html,body{
 /* Bubbles */
 .bubble{
   max-width:68%;padding:8px 12px;
-  font-size:14px;line-height:1.55;
+  font-size:16px;line-height:1.55;
   position:relative;word-break:break-word
 }
 .bubble.incoming{
@@ -410,12 +410,12 @@ html,body{
 }
 .bubble.outgoing .bubble-time{color:rgba(255,255,255,.6)}
 .bubble.outgoing .tick{color:rgba(255,255,255,.9)}
-.bubble-name{font-size:11px;font-weight:700;color:var(--blue-mid);margin-bottom:3px}
+.bubble-name{font-size:13px;font-weight:700;color:var(--blue-mid);margin-bottom:3px}
 .bubble-time{
-  font-size:10px;color:#aaa;text-align:right;
+  font-size:12px;color:#aaa;text-align:right;
   margin-top:3px;display:flex;align-items:center;justify-content:flex-end;gap:3px
 }
-.tick{font-size:11px;color:var(--blue);transition:color .3s ease}
+.tick{font-size:13px;color:var(--blue);transition:color .3s ease}
 
 /* Locked card */
 .locked-card{
@@ -426,11 +426,11 @@ html,body{
 .locked-card:hover{box-shadow:var(--shadow-md)}
 .locked-card-body{padding:12px 14px 8px}
 .locked-card .sender-name{
-  font-size:11px;font-weight:700;color:var(--blue);
+  font-size:13px;font-weight:700;color:var(--blue);
   margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px
 }
 .blurred-text{
-  font-size:14px;line-height:1.6;color:var(--text);
+  font-size:16px;line-height:1.6;color:var(--text);
   filter:blur(5px);user-select:none;pointer-events:none;
   overflow:hidden;max-height:90px;margin-bottom:8px;
   -webkit-user-select:none
@@ -443,14 +443,14 @@ html,body{
 }
 .unlock-bar:hover{background:var(--blue-dark)}
 .unlock-bar:active{background:var(--blue-dark);transform:scale(.99)}
-.unlock-bar .ul-text{font-size:13px;font-weight:700}
+.unlock-bar .ul-text{font-size:15px;font-weight:700}
 .unlock-bar .ul-price{
-  font-size:12px;font-weight:700;
+  font-size:14px;font-weight:700;
   background:rgba(255,255,255,.2);
   padding:3px 10px;border-radius:20px
 }
 .locked-fomo{
-  font-size:11px;color:var(--blue);font-weight:600;
+  font-size:13px;color:var(--blue);font-weight:600;
   margin-top:6px;display:flex;align-items:center;gap:4px
 }
 
@@ -481,8 +481,8 @@ html,body{
   font-size:10px;color:#795548;text-transform:uppercase;
   letter-spacing:.5px;font-weight:700
 }
-.own-locked-price{font-size:13px;color:var(--gold);font-weight:700}
-.own-locked-text{font-size:14px;line-height:1.6;color:var(--text);margin-bottom:8px}
+.own-locked-price{font-size:15px;color:var(--gold);font-weight:700}
+.own-locked-text{font-size:16px;line-height:1.6;color:var(--text);margin-bottom:8px}
 .own-locked-stats{
   display:flex;gap:14px;padding-top:8px;
   border-top:1px solid rgba(255,213,79,.5)
@@ -510,7 +510,7 @@ html,body{
 }
 #msg-textarea{
   flex:1;background:none;border:none;outline:none;
-  font-family:'Roboto',sans-serif;font-size:14px;color:var(--text);
+  font-family:'Roboto',sans-serif;font-size:16px;color:var(--text);
   resize:none;min-height:20px;max-height:100px;line-height:1.5;padding:0
 }
 #msg-textarea::placeholder{color:#bbb}
