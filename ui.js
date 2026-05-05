@@ -51,16 +51,19 @@ export function setMainState(state) {
   const composeEl = document.getElementById('compose');
   const profileEl = document.getElementById('writer-profile');
   const roomProfEl= document.getElementById('room-profile');
+  const readerProfEl = document.getElementById('reader-profile');
   emptyEl.style.display   = 'none';
   headerEl.classList.remove('visible');
   msgsEl.classList.remove('visible');
   composeEl.style.display = 'none';
   profileEl.classList.remove('visible');
   roomProfEl.classList.remove('visible');
-  if(state === 'empty')        { emptyEl.style.display = ''; }
-  else if(state === 'chat')    { headerEl.classList.add('visible'); msgsEl.classList.add('visible'); composeEl.style.display='flex'; }
-  else if(state === 'profile') { profileEl.classList.add('visible'); }
-  else if(state === 'room-profile') { roomProfEl.classList.add('visible'); }
+  if(readerProfEl) readerProfEl.classList.remove('visible');
+  if(state === 'empty')          { emptyEl.style.display = ''; }
+  else if(state === 'chat')      { headerEl.classList.add('visible'); msgsEl.classList.add('visible'); composeEl.style.display='flex'; }
+  else if(state === 'profile')   { profileEl.classList.add('visible'); }
+  else if(state === 'room-profile')   { roomProfEl.classList.add('visible'); }
+  else if(state === 'reader-profile') { if(readerProfEl) readerProfEl.classList.add('visible'); }
 }
 
 // ── TAB SWITCH ──
@@ -136,6 +139,8 @@ window.addEventListener('popstate', () => {
       window.closeWriterProfile();
     } else if(curr.type === 'room-profile') {
       window.closeRoomProfile();
+    } else if(curr.type === 'reader-profile') {
+      window.closeReaderProfile();
     } else if(curr.type === 'chat') {
       S.currentChatId = null;
       setMainState('empty');
