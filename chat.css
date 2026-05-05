@@ -650,7 +650,58 @@ html,body{
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* ── WRITER PROFILE ── */
+/* ── READER PROFILE ── */
+#reader-profile{
+  display:none;flex-direction:column;
+  position:absolute;inset:0;
+  background:var(--bg);z-index:5;overflow:hidden
+}
+#reader-profile.visible{display:flex !important;animation:fadeIn .22s ease}
+#reader-profile .rp-scroll{
+  flex:1;overflow-y:auto;
+  display:flex;flex-direction:column;align-items:center
+}
+#reader-profile .rp-scroll::-webkit-scrollbar{width:3px}
+#reader-profile .rp-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.08);border-radius:3px}
+#reader-profile .rp-content{
+  width:100%;max-width:680px;
+  display:flex;flex-direction:column;
+  background:var(--bg);flex:1
+}
+
+/* Field rows */
+.rdr-field-row{
+  display:flex;align-items:center;gap:12px;
+  background:var(--white);border-bottom:1px solid var(--border);
+  padding:14px 20px;transition:background var(--transition-fast)
+}
+.rdr-field-row:hover{background:#FAFAFA}
+.rdr-field-info{flex:1;min-width:0}
+.rdr-field-label{
+  font-size:11px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px
+}
+.rdr-field-val{
+  font-size:15px;color:var(--text);font-weight:500;
+  word-break:break-all
+}
+.rdr-edit-btn{
+  background:none;border:1.5px solid var(--border);
+  color:var(--muted);width:32px;height:32px;border-radius:8px;
+  cursor:pointer;font-size:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:all var(--transition-fast)
+}
+.rdr-edit-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-light)}
+
+/* Field edit modal input */
+.field-edit-input{
+  width:100%;padding:11px 14px;
+  background:var(--bg);border:1.5px solid transparent;
+  border-radius:10px;font-size:15px;font-family:Roboto,sans-serif;
+  outline:none;color:var(--text);transition:border-color .15s
+}
+.field-edit-input:focus{border-color:var(--blue)}
 #writer-profile{
   display:none;flex-direction:column;
   position:absolute;inset:0;
