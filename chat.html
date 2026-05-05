@@ -28,17 +28,14 @@
             <div id="sb-user-name" style="font-size:13px;font-weight:600;color:var(--text)"></div>
             <div id="sb-user-role" style="font-size:10px;color:var(--muted);text-transform:capitalize;letter-spacing:.3px"></div>
           </div>
-          <!-- Avatar — populated by JS -->
-          <div id="sb-avatar-wrap" style="flex-shrink:0"></div>
+          <!-- Avatar — populated by JS, clickable to open profile -->
+          <div id="sb-avatar-wrap" style="flex-shrink:0;cursor:pointer" onclick="openReaderProfile()" title="My Profile"></div>
           <button id="sb-link-btn" style="display:none" onclick="showWriterProfileLink()" title="Copy your profile link">🔗</button>
           <button id="sb-more-btn" onclick="toggleSbMenu(event)" title="Menu">⋮</button>
         </div>
       </div>
       <!-- Sidebar dropdown menu -->
       <div id="sb-menu">
-        <div class="settings-item" onclick="openSettings('email')"><span class="si-icon">✉</span> Change Email</div>
-        <div class="settings-item" onclick="openSettings('password')"><span class="si-icon">🔒</span> Change Password</div>
-        <div class="settings-item" onclick="openSettings('mobile')"><span class="si-icon">☏</span> Mobile Number</div>
         <div class="settings-item" id="bio-item" style="display:none" onclick="openSettings('bio')"><span class="si-icon">✎</span> Edit Bio</div>
         <div class="settings-item" id="create-room-item" style="display:none" onclick="closeSbMenu();document.getElementById('room-overlay').classList.add('show')"><span class="si-icon">+</span> Create Room</div>
         <div class="settings-item" onclick="closeSbMenu();openFeedback()"><span class="si-icon">✦</span> Feedback</div>
@@ -87,6 +84,64 @@
     <div id="empty-state">
       <div class="big-icon">✦</div>
       <p>Select a chat or find a writer to start</p>
+    </div>
+
+    <!-- Reader/User Profile Panel -->
+    <div id="reader-profile">
+      <div class="rp-header">
+        <button class="rp-back-btn" onclick="closeReaderProfile()">&#8592;</button>
+        <div id="rdr-avi" class="rp-avi" style="border-radius:50%;overflow:hidden"></div>
+        <div style="flex:1;min-width:0">
+          <div id="rdr-name" class="rp-name"></div>
+          <div id="rdr-role" class="rp-sub"></div>
+        </div>
+      </div>
+      <div class="rp-scroll">
+        <div class="rp-content">
+
+          <!-- Profile fields -->
+          <div style="padding:16px 16px 8px">
+            <div class="rp-section-label">Account</div>
+          </div>
+
+          <!-- User ID -->
+          <div class="rdr-field-row">
+            <div class="rdr-field-info">
+              <div class="rdr-field-label">User ID</div>
+              <div class="rdr-field-val" id="rdr-uid"></div>
+            </div>
+            <!-- UID is read-only, no edit -->
+          </div>
+
+          <!-- Email -->
+          <div class="rdr-field-row">
+            <div class="rdr-field-info">
+              <div class="rdr-field-label">Email</div>
+              <div class="rdr-field-val" id="rdr-email"></div>
+            </div>
+            <button class="rdr-edit-btn" onclick="openFieldEdit('email')" title="Edit Email">&#9998;</button>
+          </div>
+
+          <!-- Password -->
+          <div class="rdr-field-row">
+            <div class="rdr-field-info">
+              <div class="rdr-field-label">Password</div>
+              <div class="rdr-field-val">••••••••</div>
+            </div>
+            <button class="rdr-edit-btn" onclick="openFieldEdit('password')" title="Change Password">&#9998;</button>
+          </div>
+
+          <!-- Mobile -->
+          <div class="rdr-field-row">
+            <div class="rdr-field-info">
+              <div class="rdr-field-label">Mobile Number</div>
+              <div class="rdr-field-val" id="rdr-mobile">—</div>
+            </div>
+            <button class="rdr-edit-btn" onclick="openFieldEdit('mobile')" title="Edit Mobile">&#9998;</button>
+          </div>
+
+        </div>
+      </div>
     </div>
 
     <!-- Writer Profile Panel -->
@@ -305,6 +360,18 @@
     <div class="modal-btns">
       <button class="modal-cancel" onclick="closeOverlay('invite-overlay')">Close</button>
       <button class="modal-confirm" onclick="copyInviteLink()">Copy Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── FIELD EDIT MODAL ── -->
+<div class="overlay" id="field-edit-overlay">
+  <div class="modal">
+    <h3 id="field-edit-title">Edit</h3>
+    <div id="field-edit-content" style="margin:12px 0"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeOverlay('field-edit-overlay')">Cancel</button>
+      <button class="modal-confirm" id="field-edit-save" onclick="saveFieldEdit()">Save</button>
     </div>
   </div>
 </div>
