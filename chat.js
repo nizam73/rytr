@@ -918,7 +918,98 @@ window.confirmAddPoints = async function() {
   toast(`✓ ${S.selectedPtsAmt} Points added!`);
 };
 
-// ── FIND WRITERS ──
+// ── READER PROFILE ──
+window.openReaderProfile = async function() {
+  const { setMainState, showMain, pushNav } = await import('./ui.js');
+  // Populate fields
+  const uid     = S.currentUser.uid;
+  const name    = S.currentUserData.displayName || S.currentUser.displayName || 'User';
+  const role    = S.currentUserData.role || 'reader';
+  const email   = S.currentUser.email || '—';
+  const mobile  = S.currentUserData.mobile || '—';
+  const photo   = S.currentUserData.photoURL || S.currentUser.photoURL || null;
+
+  document.getElementById('rdr-name').textContent  = name;
+  document.getElementById('rdr-role').textContent  = role.charAt(0).toUpperCase() + role.slice(1);
+  document.getElementById('rdr-uid').textContent   = uid;
+  document.getElementById('rdr-email').textContent = email;
+  document.getElementById('rdr-mobile').textContent = mobile;
+
+  // Avatar
+  const aviEl = document.getElementById('rdr-avi');
+  if(photo) {
+    aviEl.innerHTML = `<img src="${esc(photo)}" alt="${name[0].toUpperCase()}"
+      style="width:100%;height:100%;object-fit:cover;border-radius:50%;"
+      onerror="this.parentElement.textContent='${name[0].toUpperCase()}'"/>`;
+  } else {
+    aviEl.textContent = name[0].toUpperCase();
+    aviEl.style.cssText = 'background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;border-radius:50%';
+  }
+
+  setMainState('reader-profile');
+  showMain();
+  pushNav({ type: 'reader-profile' });
+};
+
+window.closeReaderProfile = async function() {
+  const { setMainState, showSidebar, isMobile } = await import('./ui.js');
+  document.getElementById('reader-profile').classList.remove('visible');
+  setMainState('empty');
+  if(isMobile()) showSidebar();
+};
+
+// ── FIELD EDIT (reader profile inline popup) ──
+let _fieldEditType = '';
+window.openFieldEdit = function(type) {
+  _fieldEditType = type;
+  const titles  = { email:'Change Email', password:'Change Password', mobile:'Mobile Number' };
+  document.getElementById('field-edit-title').textContent = titles[type] || 'Edit';
+  const c = document.getElementById('field-edit-content');
+  if(type === 'email') {
+    c.innerHTML = `<input id="fe-input" class="field-edit-input" type="email"
+      placeholder="New email address" value="${esc(S.currentUser.email||'')}"/>`;
+  } else if(type === 'password') {
+    c.innerHTML = `<input id="fe-input" class="field-edit-input" type="password"
+      placeholder="New password (min 6 chars)"/>
+      <input id="fe-input2" class="field-edit-input" type="password"
+      placeholder="Confirm new password" style="margin-top:10px"/>`;
+  } else if(type === 'mobile') {
+    c.innerHTML = `<input id="fe-input" class="field-edit-input" type="tel"
+      placeholder="e.g. +8801XXXXXXXXX" value="${esc(S.currentUserData.mobile||'')}"/>`;
+  }
+  document.getElementById('field-edit-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('fe-input')?.focus(), 80);
+};
+
+window.saveFieldEdit = async function() {
+  const btn = document.getElementById('field-edit-save');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    if(_fieldEditType === 'email') {
+      const val = document.getElementById('fe-input').value.trim();
+      if(!val) { toast('Enter an email address'); return; }
+      await updateEmail(S.currentUser, val);
+      S.currentUser = auth.currentUser;
+      document.getElementById('rdr-email').textContent = val;
+      toast('✓ Email updated');
+    } else if(_fieldEditType === 'password') {
+      const p1 = document.getElementById('fe-input').value;
+      const p2 = document.getElementById('fe-input2').value;
+      if(p1.length < 6) { toast('Password must be at least 6 characters'); return; }
+      if(p1 !== p2)     { toast('Passwords do not match'); return; }
+      await updatePassword(S.currentUser, p1);
+      toast('✓ Password updated');
+    } else if(_fieldEditType === 'mobile') {
+      const val = document.getElementById('fe-input').value.trim();
+      await updateDoc(doc(db,'users',S.currentUser.uid), { mobile: val });
+      S.currentUserData.mobile = val;
+      document.getElementById('rdr-mobile').textContent = val || '—';
+      toast('✓ Mobile number saved');
+    }
+    window.closeOverlay('field-edit-overlay');
+  } catch(e) { toast('Error: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Save'; }
+};
 export async function loadWriters() {
   const list = document.getElementById('writers-list');
   list.innerHTML = '<div style="padding:16px;color:#aaa;font-size:13px">Loading writers...</div>';
