@@ -920,42 +920,61 @@ window.confirmAddPoints = async function() {
 
 // ── READER PROFILE ──
 window.openReaderProfile = async function() {
-  const { setMainState, showMain, pushNav } = await import('./ui.js');
-  // Populate fields
-  const uid     = S.currentUser.uid;
-  const name    = S.currentUserData.displayName || S.currentUser.displayName || 'User';
-  const role    = S.currentUserData.role || 'reader';
-  const email   = S.currentUser.email || '—';
-  const mobile  = S.currentUserData.mobile || '—';
-  const photo   = S.currentUserData.photoURL || S.currentUser.photoURL || null;
+  try {
+    const uid     = S.currentUser.uid;
+    const name    = S.currentUserData.displayName || S.currentUser.displayName || 'User';
+    const role    = S.currentUserData.role || 'reader';
+    const email   = S.currentUser.email || '—';
+    const mobile  = S.currentUserData.mobile || '—';
+    const photo   = S.currentUserData.photoURL || S.currentUser.photoURL || null;
 
-  document.getElementById('rdr-name').textContent  = name;
-  document.getElementById('rdr-role').textContent  = role.charAt(0).toUpperCase() + role.slice(1);
-  document.getElementById('rdr-uid').textContent   = uid;
-  document.getElementById('rdr-email').textContent = email;
-  document.getElementById('rdr-mobile').textContent = mobile;
+    document.getElementById('rdr-name').textContent   = name;
+    document.getElementById('rdr-role').textContent   = role.charAt(0).toUpperCase() + role.slice(1);
+    document.getElementById('rdr-uid').textContent    = uid;
+    document.getElementById('rdr-email').textContent  = email;
+    document.getElementById('rdr-mobile').textContent = mobile || '—';
 
-  // Avatar
-  const aviEl = document.getElementById('rdr-avi');
-  if(photo) {
-    aviEl.innerHTML = `<img src="${esc(photo)}" alt="${name[0].toUpperCase()}"
-      style="width:100%;height:100%;object-fit:cover;border-radius:50%;"
-      onerror="this.parentElement.textContent='${name[0].toUpperCase()}'"/>`;
-  } else {
-    aviEl.textContent = name[0].toUpperCase();
-    aviEl.style.cssText = 'background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;border-radius:50%';
+    const aviEl = document.getElementById('rdr-avi');
+    if(photo) {
+      aviEl.innerHTML = `<img src="${esc(photo)}" alt="${name[0].toUpperCase()}"
+        style="width:100%;height:100%;object-fit:cover;border-radius:50%;"
+        onerror="this.parentElement.textContent='${name[0].toUpperCase()}'"/>`;
+      aviEl.style.cssText = '';
+    } else {
+      aviEl.innerHTML = name[0].toUpperCase();
+      aviEl.style.cssText = 'background:linear-gradient(135deg,var(--blue),var(--blue-mid));color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;border-radius:50%;width:42px;height:42px;flex-shrink:0';
+    }
+
+    // Show the panel — use setMainState if available, else direct DOM
+    const { setMainState, showMain, pushNav, isMobile } = await import('./ui.js');
+    setMainState('reader-profile');
+    if(isMobile()) showMain();
+    pushNav({ type: 'reader-profile' });
+  } catch(e) {
+    // Fallback: direct DOM show
+    const panel = document.getElementById('reader-profile');
+    if(panel) {
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('chat-header').classList.remove('visible');
+      document.getElementById('messages-wrap').classList.remove('visible');
+      document.getElementById('compose').style.display = 'none';
+      document.getElementById('writer-profile').classList.remove('visible');
+      document.getElementById('room-profile').classList.remove('visible');
+      panel.classList.add('visible');
+    }
+    console.error('openReaderProfile error:', e);
   }
-
-  setMainState('reader-profile');
-  showMain();
-  pushNav({ type: 'reader-profile' });
 };
 
 window.closeReaderProfile = async function() {
-  const { setMainState, showSidebar, isMobile } = await import('./ui.js');
   document.getElementById('reader-profile').classList.remove('visible');
-  setMainState('empty');
-  if(isMobile()) showSidebar();
+  try {
+    const { setMainState, showSidebar, isMobile } = await import('./ui.js');
+    setMainState('empty');
+    if(isMobile()) showSidebar();
+  } catch(e) {
+    document.getElementById('empty-state').style.display = '';
+  }
 };
 
 // ── FIELD EDIT (reader profile inline popup) ──
