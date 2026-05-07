@@ -672,10 +672,22 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
       <div class="msg-more-wrap">
         <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
         <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
-          ${isMe
-            ? `<div class="msg-more-item" onclick="copyMsgText('${msgId}')">&#128203; Copy</div>`
-            : `<div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>`
-          }
+          <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>
+        </div>
+      </div>`;
+
+  } else if(isMe) {
+    row.innerHTML = `
+      <div class="own-locked">
+        <div class="own-locked-top">
+          <span class="own-locked-label">🔒 Locked</span>
+          <span class="own-locked-price">◎ ${data.price} pts</span>
+        </div>
+        <div class="own-locked-text">${esc(data.text)}</div>
+        <div class="bubble-time" style="text-align:right;font-size:10px;color:#aaa;">${time}</div>
+        <div class="own-locked-stats">
+          <div class="stat">Unlocked by <b id="uc-${msgId}">${data.unlockCount||0}</b></div>
+          <div class="stat">Earned <b id="ue-${msgId}">◎ ${(data.unlockCount||0)*data.price}</b></div>
         </div>
       </div>`;
     listenUnlockCount(docSnap.ref, msgId, data.price, S.currentChatId);
@@ -720,7 +732,6 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
         <div class="msg-more-wrap">
           <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
           <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
-            <div class="msg-more-item" onclick="copyMsgText('${msgId}')">&#128203; Copy</div>
             <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>
           </div>
         </div>`;
@@ -1556,27 +1567,6 @@ window.toggleMsgMenu = function(e, msgId) {
 document.addEventListener('click', () => {
   if(_openMsgMenu) { _openMsgMenu.style.display = 'none'; _openMsgMenu = null; }
 });
-
-window.copyMsgText = function(msgId) {
-  if(_openMsgMenu) { _openMsgMenu.style.display='none'; _openMsgMenu=null; }
-  const row = document.getElementById('msg-'+msgId);
-  if(!row) return;
-  const textEl = row.querySelector('.bubble > div:not(.bubble-time):not(.bubble-name)')
-               || row.querySelector('.revealed-card-body > div:not(.bubble-time):not(.revealed-badge):not(.bubble-name)')
-               || row.querySelector('.own-locked-text');
-  const text = textEl ? textEl.textContent.trim() : '';
-  if(!text) return;
-  navigator.clipboard.writeText(text)
-    .then(() => toast('✓ Copied'))
-    .catch(() => {
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
-      document.body.appendChild(ta); ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      toast('✓ Copied');
-    });
-};
 
 // ── REPORT ──
 let _pendingReport = null;
