@@ -677,18 +677,6 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
             : `<div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>`
           }
         </div>
-    row.innerHTML = `
-      <div class="own-locked">
-        <div class="own-locked-top">
-          <span class="own-locked-label">🔒 Locked</span>
-          <span class="own-locked-price">◎ ${data.price} pts</span>
-        </div>
-        <div class="own-locked-text">${esc(data.text)}</div>
-        <div class="bubble-time" style="text-align:right;font-size:10px;color:#aaa;">${time}</div>
-        <div class="own-locked-stats">
-          <div class="stat">Unlocked by <b id="uc-${msgId}">${data.unlockCount||0}</b></div>
-          <div class="stat">Earned <b id="ue-${msgId}">◎ ${(data.unlockCount||0)*data.price}</b></div>
-        </div>
       </div>`;
     listenUnlockCount(docSnap.ref, msgId, data.price, S.currentChatId);
 
