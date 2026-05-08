@@ -665,21 +665,38 @@ async function fillMessageRow(row, docSnap, colPath, isMe) {
     const readBy  = data.readBy || [];
     const isRead  = readBy.some(uid => uid !== S.currentUser.uid);
     const tickClr = isMe ? (isRead ? '#fff' : 'rgba(255,255,255,.45)') : 'var(--blue)';
-    row.innerHTML = `
-      ${!isMe ? avatarHtml('msg-avi', data.senderName||'U', senderPhoto) : ''}
-      <div class="bubble ${isMe?'outgoing':'incoming'}">
-        ${!isMe && S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
-        <div>${linkify(esc(data.text))}</div>
-        <div class="bubble-time">${time}${isMe?`<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span>`:''}</div>
-      </div>
-      <div class="msg-more-wrap">
-        <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
-        <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
-          ${isMe
-            ? `<div class="msg-more-item" onclick="copyMsgText('${msgId}')">&#128203; Copy</div>`
-            : `<div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>`
-          }
+    if(isMe) {
+      // Own sent message — plain outgoing bubble
+      row.innerHTML = `
+        <div class="bubble outgoing">
+          <div>${linkify(esc(data.text))}</div>
+          <div class="bubble-time">${time}<span class="tick" id="tick-${msgId}" style="color:${tickClr}" title="${isRead?'Read':'Delivered'}">✓✓</span></div>
         </div>
+        <div class="msg-more-wrap">
+          <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
+          <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
+            <div class="msg-more-item" onclick="copyMsgText('${msgId}')">&#128203; Copy</div>
+          </div>
+        </div>`;
+    } else {
+      // Incoming message
+      row.innerHTML = `
+        ${avatarHtml('msg-avi', data.senderName||'U', senderPhoto)}
+        <div class="bubble incoming">
+          ${S.currentChatType==='room' ? `<div class="bubble-name">${esc(data.senderName||'')}</div>` : ''}
+          <div>${linkify(esc(data.text))}</div>
+          <div class="bubble-time">${time}</div>
+        </div>
+        <div class="msg-more-wrap">
+          <button class="msg-more-btn" onclick="toggleMsgMenu(event,'${msgId}')" title="More"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="2" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg></button>
+          <div class="msg-more-menu" id="mmenu-${msgId}" style="display:none">
+            <div class="msg-more-item danger" onclick="openReport('${msgId}','${esc(data.senderName||'')}')">⚑ Report</div>
+          </div>
+        </div>`;
+    }
+
+  } else if(isMe) {
+    // Own locked message — show stats card
     row.innerHTML = `
       <div class="own-locked">
         <div class="own-locked-top">
