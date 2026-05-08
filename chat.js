@@ -223,53 +223,55 @@ async function applyPlatformSettings() {
 // ── AUTH GATE ──
 onAuthStateChanged(auth, async user => {
   if(!user) { window.location.href = 'index.html'; return; }
-  try {
-    try { await user.reload(); } catch(e) { /* offline — proceed with cached user */ }
-    const freshUser = auth.currentUser;
+
+  try { await user.reload(); } catch(e) { /* offline - use cached */ }
+  const freshUser = auth.currentUser;
+
   if(!freshUser || !freshUser.emailVerified) {
     window.location.href = 'index.html'; return;
   }
+
   S.currentUser = freshUser;
-  // Store photo URL — prefer Google photo, fall back to null
   S.currentUserPhotoURL = freshUser.photoURL || null;
+
   let snap;
   try {
-    snap = await getDoc(doc(db,'users', freshUser.uid));
+    snap = await getDoc(doc(db, 'users', freshUser.uid));
   } catch(e) {
-    await signOut(auth);
-    window.location.href = 'index.html'; return;
-  }
-  if(!snap.exists()) { window.location.href = 'index.html'; return; }
-  S.currentUserData = snap.data();
-  // Sync Google photo URL to Firestore if available and not already stored
-  if(freshUser.photoURL && S.currentUserData.photoURL !== freshUser.photoURL) {
-    updateDoc(doc(db,'users',freshUser.uid), { photoURL: freshUser.photoURL }).catch(()=>{});
-    S.currentUserData = { ...S.currentUserData, photoURL: freshUser.photoURL };
-  }
-  if(S.currentUserData.blocked) { await signOut(auth); window.location.href = 'index.html'; return; }
-  if(S.currentUserData.role === 'admin') { window.location.href = 'admin.html'; return; }
-
-  // Writer approval check — unapproved writers cannot access the app
-  // (This is a secondary guard; primary check is in index.html doLogin)
-  if(S.currentUserData.role === 'writer' && !S.currentUserData.approved) {
-    await signOut(auth);
-    window.location.href = 'index.html';
+    console.error('Firestore fetch failed:', e);
+    document.getElementById('loading-screen').style.display = 'none';
     return;
   }
-  document.getElementById('loading-screen').style.display = 'none';
-  await applyPlatformSettings();
-  await initUI();
-  listenBalance();
-  loadChats();
-  if(S.currentUserData.role === 'writer') {
-    document.getElementById('lock-controls').classList.add('visible');
-    document.getElementById('sb-earnings').style.display = '';
-    document.getElementById('create-room-item').style.display = '';
-    document.getElementById('sb-link-btn').style.display = '';
-    document.getElementById('bio-item').style.display = '';
+  if(!snap.exists()) { window.location.href = 'index.html'; return; }
+
+  S.currentUserData = snap.data();
+
+  if(freshUser.photoURL && S.currentUserData.photoURL !== freshUser.photoURL) {
+    updateDoc(doc(db, 'users', freshUser.uid), { photoURL: freshUser.photoURL }).catch(() => {});
+    S.currentUserData = { ...S.currentUserData, photoURL: freshUser.photoURL };
   }
+
+  if(S.currentUserData.blocked) { await signOut(auth); window.location.href = 'index.html'; return; }
+  if(S.currentUserData.role === 'admin') { window.location.href = 'admin.html'; return; }
+  if(S.currentUserData.role === 'writer' && !S.currentUserData.approved) {
+    await signOut(auth); window.location.href = 'index.html'; return;
+  }
+
+  try {
+    document.getElementById('loading-screen').style.display = 'none';
+    await applyPlatformSettings();
+    await initUI();
+    listenBalance();
+    loadChats();
+    if(S.currentUserData.role === 'writer') {
+      document.getElementById('lock-controls').classList.add('visible');
+      document.getElementById('sb-earnings').style.display = '';
+      document.getElementById('create-room-item').style.display = '';
+      document.getElementById('sb-link-btn').style.display = '';
+      document.getElementById('bio-item').style.display = '';
+    }
   } catch(err) {
-    console.error('Auth init error:', err);
+    console.error('App init error:', err);
     document.getElementById('loading-screen').style.display = 'none';
   }
 });
